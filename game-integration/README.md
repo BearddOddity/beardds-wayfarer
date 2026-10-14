@@ -111,4 +111,9 @@ English until your next pipeline run. Nothing else of the mod ever needs you.
 - Module authors read `bible/06-Systems/Mod-API.md`; [docs/developers/mod-api.md](../docs/developers/mod-api.md) is its short
   form.
 
+## Licence
+
+The patch is offered under the **MIT License**, the game's own, so it can go into the game like any other contribution.
+(The mod itself has its own terms: see the repository's [LICENSE](../LICENSE).)
+
 Questions: Beardd ([BearddOddity](https://github.com/BearddOddity)).

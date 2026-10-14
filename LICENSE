@@ -1,34 +1,65 @@
-MIT License
+Beardd's Wayfarer - License
+Copyright (c) 2026 Beardd (BearddOddity). Original creator of Beardd's Wayfarer.
+https://github.com/BearddOddity/beardds-wayfarer
 
-Copyright (c) 2026 Beardd (BearddOddity)
+=====================================================================
+IN PLAIN WORDS (this summary is not the license; the terms below are)
+=====================================================================
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  - FREE OF CHARGE. Beardd's Wayfarer is free. You may not sell it, or any
+    copy or changed version of it, or charge for access to it.
+  - FREE TO SHARE AND CHANGE. You may use it, copy it, share it and make
+    changed versions of it.
+  - CREDIT THE ORIGINAL CREATOR. Every copy and every changed version must
+    name Beardd (BearddOddity) as the original creator of Beardd's Wayfarer
+    and link to https://github.com/BearddOddity/beardds-wayfarer.
+  - KEEP IT OPEN. A changed version you share must use this same license.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+=====================================================================
+1. THE MOD
+=====================================================================
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Everything in this repository except the parts named in section 2 (the mod's
+source and builds in source/ and Mods/, its tests, tools, scripts and
+documentation) is licensed under the
 
----
+    Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+    License (CC BY-NC-SA 4.0)
+    https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
-Third-party code in this repository:
+with this ATTRIBUTION REQUIREMENT, which is how the original creator asks to be
+credited under Section 3(a) of that license: wherever you share the mod or a
+changed version of it (the download page, the README, and the in-game module
+description), state, in words to this effect:
 
-game-integration/patches/ and dev-review/core/core.js, dev-review/core/modapi.mjs contain
-code from the DFO Online game source (https://github.com/Lattymoy/daggerfall-js-source),
-used under its MIT License:
+    "Based on Beardd's Wayfarer by Beardd (BearddOddity) -
+     https://github.com/BearddOddity/beardds-wayfarer"
 
-  Copyright (c) 2026 Lattymoy
+and do not remove or change the original creator's name in the files' notices
+or in the modules' "author" field. A changed version must say that it was
+changed, and must not use the name "Beardd's Wayfarer" alone as its own name in
+a way that suggests the original creator made or endorses the changes.
+
+"NonCommercial" means, as in the license: not primarily intended for or
+directed towards commercial advantage or monetary compensation. Selling the
+mod, bundling it in something sold, or putting it behind a paywall is not
+allowed. Voluntary donations to the original creator are not affected.
+
+=====================================================================
+2. THE MOD API FOR THE GAME, AND THE GAME'S OWN CODE
+=====================================================================
+
+  - game-integration/patches/ (the Mod API for DFO Online, offered to the
+    game's developers), and
+  - dev-review/core/core.js and dev-review/core/modapi.mjs (which are built
+    from the game's own source)
+
+are licensed under the MIT License, the license of the DFO Online game source
+(https://github.com/Lattymoy/daggerfall-js-source), so that the game may
+include them:
+
+  Copyright (c) 2026 Lattymoy (the DFO Online game source)
+  Copyright (c) 2026 Beardd (BearddOddity) (the Mod API changes)
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -47,3 +78,20 @@ used under its MIT License:
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+=====================================================================
+3. CONTRIBUTIONS
+=====================================================================
+
+By sending a contribution (a pull request, a patch or a file) you agree that it
+is your own work, and that it is licensed under the same terms as the part of
+the repository it changes: section 1 for the mod, section 2 for the Mod API
+patch. Contributors are credited in CONTRIBUTORS.md. See CONTRIBUTING.md.
+
+=====================================================================
+4. NO WARRANTY
+=====================================================================
+
+The mod is provided "as is", without warranty of any kind. Daggerfall and The
+Elder Scrolls are trademarks of their owners; this mod is not affiliated with
+or endorsed by them.

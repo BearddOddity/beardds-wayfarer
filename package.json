@@ -3,7 +3,7 @@
   "version": "1.2.1",
   "private": true,
   "description": "Beardd's Wayfarer: an accessibility mod for DFO Online - waypoint, guide trail and pins, on the game's Mod API",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",

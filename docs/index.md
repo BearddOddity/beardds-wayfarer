@@ -23,11 +23,22 @@ Start here. Each page is short and stands on its own.
 | [Maintaining](developers/maintaining.md) | change the mod, test it, release a new version - before and after the review; change the Mod API |
 | [Review checklist](developers/review-checklist.md) | review the work point by point, and see what is verified live and what is not |
 
+## For contributors
+
+| Page | Read it to... |
+| --- | --- |
+| [Contributing](../CONTRIBUTING.md) | send a fix or an idea: how, and the rules every change keeps |
+| [Contributors](../CONTRIBUTORS.md) | see who made the mod |
+| [License](../LICENSE) | know what you may do with it: free, shareable, changeable, never sold, crediting Beardd |
+
 ## The repository at a glance
 
 ```
 Beardd's Wayfarer/
   README.md               the front page
+  LICENSE                 free, never sold, credit Beardd (CC BY-NC-SA 4.0); the game patch MIT
+  CONTRIBUTING.md         how to contribute, and the rules
+  CONTRIBUTORS.md         who made it
   Install.cmd             installs or updates the mod (tools/install.ps1)
   Uninstall.cmd           takes it out cleanly, after asking (tools/uninstall.ps1)
   CHANGELOG.md            what changed in each release

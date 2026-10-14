@@ -80,7 +80,15 @@ settings and keys stay. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The game patches and the loader's built host contain code from the DFO Online game source,
-which is also MIT (Copyright (c) 2026 Lattymoy).
+Beardd's Wayfarer is **free**. You may use it, share it and change it - but never sell it, and every copy or changed version
+must credit **Beardd (BearddOddity)** as the original creator. A changed version you share keeps these same terms. The legal
+terms are Creative Commons BY-NC-SA 4.0 with a credit rule: see [LICENSE](LICENSE).
 
-Made by **Beardd** ([BearddOddity](https://github.com/BearddOddity)).
+The Mod API patch for the game (`game-integration/`) is MIT, the game's own license, so the game can include it.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first. Contributors are credited
+in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+Created by **Beardd** ([BearddOddity](https://github.com/BearddOddity)).
