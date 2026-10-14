@@ -4,7 +4,7 @@
 
 Daggerfall's world is huge, and its quest text often gives no directions. Beardd's Wayfarer shows you where to go:
 
-- a **waypoint** diamond in the world over the place you are heading for, with the distance and the time at your pace;
+- a **waypoint** diamond in the world over the place you are heading for, with the distance;
 - a **guide trail** of glowing embers along the way there: round walls, up hills and stairs, and between a dungeon's floors;
 - **pins and destinations** you set yourself: on the town map, on a dungeon map, on the region map, or where you look.
 
@@ -21,7 +21,7 @@ It runs only in your own game client. Nothing is sent to the server, and every k
 | **New players** | The waypoint and the trail stop you getting lost when quest text gives no directions. | Working. Tested live: dungeon floors (stairs, climbs), the exit, town destinations, region-map waypoints, quest buildings. |
 | **Low vision** | High-visibility looks, a large waypoint, and ember pools that stay visible on pale and snowy floors. | About 95% |
 | **Colour blindness** | Each kind of mark has its own Okabe-Ito colour, always with a word ("Pin", "Destination", "Exit", "Waypoint"). | About 85% |
-| **Dyslexia and attention** | Distance and time ("420 m - 2 min") replace dense reading. | Done |
+| **Dyslexia and attention** | A plain distance ("420 m") replaces dense reading. | Done |
 | **Limited reach / one hand** | Every key can be moved to any key you like (Shift+F1). | Under review |
 | **Screen-reader and keyboard users** | The keys panel is a labelled dialog. Tab, Enter and Escape work, and each result is read out. | Done |
 

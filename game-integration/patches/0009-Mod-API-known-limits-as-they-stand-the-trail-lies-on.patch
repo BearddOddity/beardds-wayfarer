@@ -1,7 +1,7 @@
 From b6a598373e1b9897cc712c6ba92358abb5275487 Mon Sep 17 00:00:00 2001
 From: BearddOddity <beardedoddity@gmail.com>
 Date: Wed, 14 Oct 2026 07:10:55 -0500
-Subject: [PATCH 09/12] Mod-API: known limits as they stand - the trail lies on
+Subject: [PATCH 09/13] Mod-API: known limits as they stand - the trail lies on
  the floor and goes round walls; places last for the scene; a module's words
  are its own
 

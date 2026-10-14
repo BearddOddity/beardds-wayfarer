@@ -11,8 +11,8 @@ stands over it and the trail leads to it. There is only **one** trail at a time.
 
 ## The waypoint
 
-- A diamond stands over the place, about a man's height above its floor. It shows the distance, and while you walk, the time
-  at your own pace: **"420 m - 2 min"**.
+- A diamond stands over the place, about a man's height above its floor. It shows the distance: **"420 m"**, or **"1.9 km"**
+  far away.
 - When the place is off to a side or behind you, an **arrow** waits at the edge of the screen and points the way to turn.
 - When a wall stands between you and the place, the diamond is **dim**.
 - When the place is on another floor of a dungeon, the label says **"above"** or **"below"**.

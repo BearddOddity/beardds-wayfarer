@@ -35,7 +35,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 ## 3. The modules
 
 - [ ] **waypoint:** projected with the renderer's own matrices, 2.4 m over the mark's floor; edge arrow along the view-space
-      direction; dim behind a wall; "420 m - 2 min" while moving; "above"/"below" only where the floor is known; kind colours
+      direction; dim behind a wall; the distance alone ("420 m"), no time; "above"/"below" only where the floor is known; kind colours
       with words; the compass's own diamond takes the same colour (gold and off: the game's own); hides when the HUD stops.
 - [ ] **guide-trail:** leads only to the compass's mark. Router: 1 m grid, slope 1:1 with the middle checked, three waist rays,
       no corner cutting, 6 ms budget, door routing when the goal is shut in. Known way: walked cells and steps only, stacked

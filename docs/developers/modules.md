@@ -23,8 +23,7 @@ a dialog, a map or a loading screen stops it.
   along it, so the arrow moves smoothly round the edge as the player turns.
 - **No camera** (an older host): the bearing from the game's own compass law (`bearing`, `screenX`) at a fixed height.
 - **Behind a wall:** a `world.ray` from the eye to the spot; a hit more than 2 m short dims the diamond (`.behind`, 45%).
-- **Label:** `distLabel(d, pace)`: "420 m", or "420 m - 2 min" while the player moves faster than 0.8 m/s (pace smoothed
-  over about 2 s; a teleport is not a pace). "above -" / "below -" when the mark's floor is more than 2.5 m from the
+- **Label:** `distLabel(d)`: the distance alone, "420 m" or "1.9 km" (no time: the player found it irrelevant). "above -" / "below -" when the mark's floor is more than 2.5 m from the
   player's, only where the floor is known.
 - **Colours:** the quest takes the player's look (`WAYPOINT_LOOKS`: gold, ivory, cyan, magenta, large). Any other kind takes
   its own Okabe-Ito colour and word (`MARK_KINDS`: pin, destination, exit, waypoint, place).

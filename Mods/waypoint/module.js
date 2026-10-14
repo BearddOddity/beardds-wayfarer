@@ -91,15 +91,9 @@ export const diamondColour = (kind, look) => kind?.css ?? (WAYPOINT_LOOKS[look] 
 
 const distText = (d, tx) => (d >= 1000 ? tx('module.waypoint.km', '{n} km', { n: (d / 1000).toFixed(1) }) : tx('module.waypoint.metres', '{n} m', { n: Math.round(d) }));
 
-/** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure but for `tx` (the
- *  words; English by default). @param {number} d metres @param {number} mps metres a second (0 when standing) */
-export function distLabel(d, mps, tx = english) {
-  const base = distText(d, tx);
-  if (!(mps > 0.8) || d < 15) return base;
-  const s = d / mps;
-  const time = s < 90 ? tx('module.waypoint.seconds', '{n} s', { n: Math.round(s) }) : tx('module.waypoint.minutes', '{n} min', { n: Math.round(s / 60) });
-  return `${base} - ${time}`;
-}
+/** How far away a spot is: "420 m", "1.9 km" - the distance alone (the player: the time to get there "is irrelevant"). Pure but
+ *  for `tx` (the words; English by default). @param {number} d metres */
+export const distLabel = (d, tx = english) => distText(d, tx);
 
 export default function setup(dfo) {
   /** Words in the player's language (the game's own table), else the English. */
@@ -112,15 +106,8 @@ export default function setup(dfo) {
 
   let mark = null;      // { tx, tz, px, pz, h, kind } or null when the game marks nothing
   let hudSeen = -1e9;   // when the HUD last drew
-  let pace = 0, lastP = null;   // the player's own walking pace (m/s), smoothed
   dfo.on('questMark', (q, p, h, kind) => {
-    const now = performance.now();
-    if (p && lastP && now > lastP.t) {
-      const v = Math.hypot(p[0] - lastP.x, p[1] - lastP.z) / ((now - lastP.t) / 1000);
-      if (v < 30) pace += (v - pace) * Math.min(1, (now - lastP.t) / 2000);   // a teleport is not a pace
-    }
-    lastP = p ? { x: p[0], z: p[1], t: now } : null;
-    hudSeen = now;
+    hudSeen = performance.now();
     mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], ty: Number.isFinite(q[2]) ? q[2] : null, px: p[0], pz: p[1], h, kind: MARK_KINDS[kind] ?? null, kindName: MARK_KINDS[kind] ? kind : null } : null;   // an older host says no kind (the quest's look) and no height
     tintCompass();
   });
@@ -189,7 +176,7 @@ export default function setup(dfo) {
     wp.style.setProperty('--c', diamondColour(mark.kind, look));
     wp.classList.toggle('big', L.big);
     wp.style.display = '';
-    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace, tx);
+    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), tx);
     // a mark on another floor says so (the distance is along the ground) - only a mark whose floor the game or a module named: in the
     // open world a far spot's lower ground is no floor (the player: a region waypoint read 'below - 1.9 km')
     const floorWord = mark.ty === null ? '' : level > OTHER_FLOOR_M ? `${tx('module.waypoint.above', 'above')} - ` : level < -OTHER_FLOOR_M ? `${tx('module.waypoint.below', 'below')} - ` : '';

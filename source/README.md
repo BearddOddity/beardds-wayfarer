@@ -30,7 +30,7 @@ Install into the desktop app's Mods folder (`<user data>/Mods/<id>/`) and switch
 
 | folder | listens to | |
 | --- | --- | --- |
-| `waypoint/` | `questMark`, `drawFx` | a diamond over the compass mark's spot on the floor - gold for the quest, sky blue for a pin, purple for a destination, teal-green for the exit, each with its word - with distance and time at your pace, dim behind walls; the compass's own diamond takes its colour (F7; Shift+F3 changes its look) |
+| `waypoint/` | `questMark`, `drawFx` | a diamond over the compass mark's spot on the floor - gold for the quest, sky blue for a pin, purple for a destination, teal-green for the exit, each with its word - with the distance, dim behind walls; the compass's own diamond takes its colour (F7; Shift+F3 changes its look) |
 | `guide-trail/` | `questMark`, `drawFx` | embers along the way round walls, up hills and rubble, and between floors by the stairs and teleporters your map knows, to the compass mark - your destination or the tracked quest, by the nearest door when it is inside a building (F4 on/off; Shift+F4 changes the look) |
 | `pins/` | `mapPick`, `questMark`, `drawFx` | right-click the local map to set a destination or pick a quest location; F2 drops a pin where you look, F3 cycles quest / way out / places, Shift+F2 removes one, right-click a dungeon's exit on its map to be guided back out; a waypoint followed on the region map is led to outdoors: the compass, waypoint and trail follow it |
 

@@ -1,0 +1,175 @@
+From 1aceb560364faa8d8645e16e031568712e0f3052 Mon Sep 17 00:00:00 2001
+From: BearddOddity <beardedoddity@gmail.com>
+Date: Wed, 14 Oct 2026 07:40:31 -0500
+Subject: [PATCH 13/13] Beardd's Wayfarer 1.2.1: the waypoint says the distance
+ alone (the player: the seconds and minutes are "irrelevant")
+
+distLabel(d) is the distance; the pace the time was read from is no longer kept.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ bible/06-Systems/Mod-API.md     |  2 +-
+ modules/README.md               |  2 +-
+ modules/guide-trail/module.json |  2 +-
+ modules/pins/module.json        |  2 +-
+ modules/waypoint/module.js      | 23 +++++------------------
+ modules/waypoint/module.json    |  4 ++--
+ test/mods1_api.test.js          | 11 ++++-------
+ 7 files changed, 15 insertions(+), 31 deletions(-)
+
+diff --git a/bible/06-Systems/Mod-API.md b/bible/06-Systems/Mod-API.md
+index 0099620991..71c64e48ab 100644
+--- a/bible/06-Systems/Mod-API.md
++++ b/bible/06-Systems/Mod-API.md
+@@ -120,7 +120,7 @@ entry's `sha256`.
+ 
+ | module | listens to | does |
+ | --- | --- | --- |
+-| `waypoint` | `questMark`, `drawFx` | a diamond over the compass's mark (the compass's own diamond takes its colour) - coloured by its kind (the quest its look; a pin sky blue, a destination purple, the exit teal-green, Okabe-Ito colours a colour-blind player tells apart, each with its word before the distance) at its own spot on the floor, in perspective, with the distance and - walking - the time at the player's pace; dim behind a wall; an edge arrow when it is off to a side (F7; Shift+F3 cycles its look: gold, ivory, cyan, magenta, large) |
++| `waypoint` | `questMark`, `drawFx` | a diamond over the compass's mark (the compass's own diamond takes its colour) - coloured by its kind (the quest its look; a pin sky blue, a destination purple, the exit teal-green, Okabe-Ito colours a colour-blind player tells apart, each with its word before the distance) at its own spot on the floor, in perspective, with the distance; dim behind a wall; an edge arrow when it is off to a side (F7; Shift+F3 cycles its look: gold, ivory, cyan, magenta, large) |
+ | `guide-trail` | `questMark`, `drawFx` | gold embers along the way to the compass's mark - the tracked quest, or a destination a module asked the compass for - planned round walls over the floor (F4 on/off, Shift+F4 its look): the embers are a pure function of a path and the clock; pools lie on the floor as translucent stains and sparks rise additively, so the trail reads on snow as well as in a dungeon |
+ 
+ | `pins` | `mapPick`, `questMark`, `drawFx` | a right click on the local map sets the destination (any spot, or a quest's ringed building); F2 drops a pin where the crosshair meets the world, F3 cycles the compass quest -> the exit -> places -> quest, Shift+F2 removes the followed one; arriving removes it; a jump of 150 m (a new place, its own frame) clears them - but not the open world's tile step (819.2 m, the frame moving as it streams: the places move with it), nor a teleporter's jump (landing at the far end the map has just recorded, `world.known()`). The exit and a dungeon map's pin keep their floor and are reached on it alone. A waypoint followed on the region map (`world.waypoints()`) is led to outdoors: one followed anew takes the compass, the rest wait in F3's cycle. THE EXIT is off until the player pins it: a right click on the dungeon map's exit mark (`mapPick`'s `exit`), or near where they came into the place (kept silently, never shown; the loader's route, where the map cannot say), pins it and the compass, waypoint and trail lead out; it stays in F3's cycle, its flag clears it, a new place forgets it. No key of its own. It asks the game to mark the place (`retarget`), so the compass, waypoint and trail follow it with no module reading another |
+diff --git a/modules/README.md b/modules/README.md
+index 4139a4525b..7e6080a6c7 100644
+--- a/modules/README.md
++++ b/modules/README.md
+@@ -30,7 +30,7 @@ Install into the desktop app's Mods folder (`<user data>/Mods/<id>/`) and switch
+ 
+ | folder | listens to | |
+ | --- | --- | --- |
+-| `waypoint/` | `questMark`, `drawFx` | a diamond over the compass mark's spot on the floor - gold for the quest, sky blue for a pin, purple for a destination, teal-green for the exit, each with its word - with distance and time at your pace, dim behind walls; the compass's own diamond takes its colour (F7; Shift+F3 changes its look) |
++| `waypoint/` | `questMark`, `drawFx` | a diamond over the compass mark's spot on the floor - gold for the quest, sky blue for a pin, purple for a destination, teal-green for the exit, each with its word - with the distance, dim behind walls; the compass's own diamond takes its colour (F7; Shift+F3 changes its look) |
+ | `guide-trail/` | `questMark`, `drawFx` | embers along the way round walls, up hills and rubble, and between floors by the stairs and teleporters your map knows, to the compass mark - your destination or the tracked quest, by the nearest door when it is inside a building (F4 on/off; Shift+F4 changes the look) |
+ | `pins/` | `mapPick`, `questMark`, `drawFx` | right-click the local map to set a destination or pick a quest location; F2 drops a pin where you look, F3 cycles quest / way out / places, Shift+F2 removes one, right-click a dungeon's exit on its map to be guided back out; a waypoint followed on the region map is led to outdoors: the compass, waypoint and trail follow it |
+ 
+diff --git a/modules/guide-trail/module.json b/modules/guide-trail/module.json
+index 3ac8cb4462..8ce9064c72 100644
+--- a/modules/guide-trail/module.json
++++ b/modules/guide-trail/module.json
+@@ -1,7 +1,7 @@
+ {
+   "id": "guide-trail",
+   "name": "Beardd's Wayfarer: guide trail",
+-  "version": "1.2.0",
++  "version": "1.2.1",
+   "api": 1,
+   "author": "Beardd (BearddOddity)",
+   "description": "Embers drift along the way to the place the compass marks: round walls, up hills and stairs, and between a dungeon's floors by the way your map knows. F4 on/off, Shift+F4 its look.",
+diff --git a/modules/pins/module.json b/modules/pins/module.json
+index 160c0ec6d2..211e1c7019 100644
+--- a/modules/pins/module.json
++++ b/modules/pins/module.json
+@@ -1,7 +1,7 @@
+ {
+   "id": "pins",
+   "name": "Beardd's Wayfarer: pins",
+-  "version": "1.2.0",
++  "version": "1.2.1",
+   "api": 1,
+   "author": "Beardd (BearddOddity)",
+   "description": "Your own places to go: right-click the local map for a destination (or a quest's location, or a dungeon's exit), middle-click a dungeon map to pin and name a spot, Follow a region-map waypoint; F2 drops a pin where you look, F3 cycles the quest and your places, Shift+F2 removes one. The compass, waypoint and trail follow the place.",
+diff --git a/modules/waypoint/module.js b/modules/waypoint/module.js
+index 707d984ac3..24976a5b03 100644
+--- a/modules/waypoint/module.js
++++ b/modules/waypoint/module.js
+@@ -91,15 +91,9 @@ export const diamondColour = (kind, look) => kind?.css ?? (WAYPOINT_LOOKS[look]
+ 
+ const distText = (d, tx) => (d >= 1000 ? tx('module.waypoint.km', '{n} km', { n: (d / 1000).toFixed(1) }) : tx('module.waypoint.metres', '{n} m', { n: Math.round(d) }));
+ 
+-/** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure but for `tx` (the
+- *  words; English by default). @param {number} d metres @param {number} mps metres a second (0 when standing) */
+-export function distLabel(d, mps, tx = english) {
+-  const base = distText(d, tx);
+-  if (!(mps > 0.8) || d < 15) return base;
+-  const s = d / mps;
+-  const time = s < 90 ? tx('module.waypoint.seconds', '{n} s', { n: Math.round(s) }) : tx('module.waypoint.minutes', '{n} min', { n: Math.round(s / 60) });
+-  return `${base} - ${time}`;
+-}
++/** How far away a spot is: "420 m", "1.9 km" - the distance alone (the player: the time to get there "is irrelevant"). Pure but
++ *  for `tx` (the words; English by default). @param {number} d metres */
++export const distLabel = (d, tx = english) => distText(d, tx);
+ 
+ export default function setup(dfo) {
+   /** Words in the player's language (the game's own table), else the English. */
+@@ -112,15 +106,8 @@ export default function setup(dfo) {
+ 
+   let mark = null;      // { tx, tz, px, pz, h, kind } or null when the game marks nothing
+   let hudSeen = -1e9;   // when the HUD last drew
+-  let pace = 0, lastP = null;   // the player's own walking pace (m/s), smoothed
+   dfo.on('questMark', (q, p, h, kind) => {
+-    const now = performance.now();
+-    if (p && lastP && now > lastP.t) {
+-      const v = Math.hypot(p[0] - lastP.x, p[1] - lastP.z) / ((now - lastP.t) / 1000);
+-      if (v < 30) pace += (v - pace) * Math.min(1, (now - lastP.t) / 2000);   // a teleport is not a pace
+-    }
+-    lastP = p ? { x: p[0], z: p[1], t: now } : null;
+-    hudSeen = now;
++    hudSeen = performance.now();
+     mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], ty: Number.isFinite(q[2]) ? q[2] : null, px: p[0], pz: p[1], h, kind: MARK_KINDS[kind] ?? null, kindName: MARK_KINDS[kind] ? kind : null } : null;   // an older host says no kind (the quest's look) and no height
+     tintCompass();
+   });
+@@ -189,7 +176,7 @@ export default function setup(dfo) {
+     wp.style.setProperty('--c', diamondColour(mark.kind, look));
+     wp.classList.toggle('big', L.big);
+     wp.style.display = '';
+-    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace, tx);
++    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), tx);
+     // a mark on another floor says so (the distance is along the ground) - only a mark whose floor the game or a module named: in the
+     // open world a far spot's lower ground is no floor (the player: a region waypoint read 'below - 1.9 km')
+     const floorWord = mark.ty === null ? '' : level > OTHER_FLOOR_M ? `${tx('module.waypoint.above', 'above')} - ` : level < -OTHER_FLOOR_M ? `${tx('module.waypoint.below', 'below')} - ` : '';
+diff --git a/modules/waypoint/module.json b/modules/waypoint/module.json
+index 95a64cc1f6..9ebf08cebf 100644
+--- a/modules/waypoint/module.json
++++ b/modules/waypoint/module.json
+@@ -1,9 +1,9 @@
+ {
+   "id": "waypoint",
+   "name": "Beardd's Wayfarer: quest waypoint",
+-  "version": "1.2.0",
++  "version": "1.2.1",
+   "api": 1,
+   "author": "Beardd (BearddOddity)",
+-  "description": "A diamond in the view over the place the compass marks - the tracked quest, or a pin, destination, exit or region-map waypoint, each in its own colour and word - with the distance and the time at your pace, and an arrow at the screen's edge when it is off to a side. The compass's diamond takes the same colour. F7 on/off, Shift+F3 its look.",
++  "description": "A diamond in the view over the place the compass marks - the tracked quest, or a pin, destination, exit or region-map waypoint, each in its own colour and word - with the distance, and an arrow at the screen's edge when it is off to a side. The compass's diamond takes the same colour. F7 on/off, Shift+F3 its look.",
+   "events": ["questMark", "drawFx"]
+ }
+diff --git a/test/mods1_api.test.js b/test/mods1_api.test.js
+index 2f6223454b..0c74484c02 100644
+--- a/test/mods1_api.test.js
++++ b/test/mods1_api.test.js
+@@ -191,7 +191,7 @@ test('MODS1: WORDS IN THE PLAYER\'S LANGUAGE - a module\'s dfo.t reads the game\
+     for (const [, key] of src.matchAll(/tx\('([^']+)'/g)) assert.match(key, /^module\.[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$/, `${file}: ${key} is a key the game's table can hold`);
+   }
+   const { distLabel } = await import('../modules/waypoint/module.js');
+-  assert.equal(distLabel(420, 3, (k, en, args) => (k === 'module.waypoint.minutes' ? `${args.n} Min.` : en.replace('{n}', args.n))), '420 m - 2 Min.', 'the distance in the player\'s words');
++  assert.equal(distLabel(1914, (k, en, args) => (k === 'module.waypoint.km' ? `${args.n.replace('.', ',')} km` : en)), '1,9 km', 'the distance in the player\'s words');
+ });
+ 
+ test('MODS1: THE KEYS PANEL - small, at the left edge, the shared name once and a group a module; a key for people; the panel\'s own key and the menus\' never a module\'s; the game\'s bus and the Modules card reach it', async () => {
+@@ -764,7 +764,7 @@ test('MODS1: PINS - F2 drops a pin where the crosshair meets the world, F3 cycle
+   assert.match(h.said.at(-1), /8 already/, 'eight at most');
+ });
+ 
+-test('MODS1: THE LOOKS AND THE LABEL - every look fills the ember field in its own colour and size; the waypoint says the time at the player\'s pace only when they move', async () => {
++test('MODS1: THE LOOKS AND THE LABEL - every look fills the ember field in its own colour and size; the waypoint says the distance alone, never a time (the player: "irrelevant")', async () => {
+   const { createEmberField, GUIDE_STYLES, GUIDE_STYLE_ORDER } = await import('../modules/guide-trail/src/embers.js');
+   const { distLabel, WAYPOINT_LOOKS } = await import('../modules/waypoint/module.js');
+   const path = [[0, 0, 0], [0, 0, 20]];
+@@ -777,11 +777,8 @@ test('MODS1: THE LOOKS AND THE LABEL - every look fills the ember field in its o
+   }
+   assert.ok(sizes.large > sizes.gold * 1.5, 'the large look is large');
+   assert.notDeepEqual(GUIDE_STYLES.cyan.ember, GUIDE_STYLES.gold.ember);
+-  assert.equal(distLabel(420, 0), '420 m', 'standing: the distance alone');
+-  assert.equal(distLabel(420, 4), '420 m - 2 min', 'walking: the time too');
+-  assert.equal(distLabel(40, 4), '40 m - 10 s');
+-  assert.equal(distLabel(5, 4), '5 m', 'near: no time');
+-  assert.equal(distLabel(1500, 3), '1.5 km - 8 min');
++  assert.deepEqual([420, 40, 5, 1500].map((d) => distLabel(d)), ['420 m', '40 m', '5 m', '1.5 km'], 'the distance alone');
++  assert.doesNotMatch(read('modules/waypoint/module.js'), /module\.waypoint\.(seconds|minutes)|\bpace\b/, 'no time, no pace kept for it');
+   assert.ok(Object.keys(WAYPOINT_LOOKS).includes('large') && WAYPOINT_LOOKS.large.big);
+ });
+ 
+-- 
+2.53.0.windows.1
+
