@@ -1,7 +1,7 @@
 {
   "id": "waypoint",
   "name": "Beardd's Wayfarer: quest waypoint",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "api": 1,
   "author": "Beardd (BearddOddity)",
   "description": "A diamond in the view over the place the compass marks - the tracked quest, or a pin, destination, exit or region-map waypoint, each in its own colour and word - with the distance and the time at your pace, and an arrow at the screen's edge when it is off to a side. The compass's diamond takes the same colour. F7 on/off, Shift+F3 its look.",

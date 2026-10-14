@@ -70,6 +70,7 @@
     for (const e of manifest.events) if (MOD_EVENTS[e].since > manifest.api) return { ok: false, reason: `'${e}' arrived in interface ${MOD_EVENTS[e].since}, after the ${manifest.api} the module declares` };
     return { ok: true, reason: "" };
   }
+  var englishText = (en, args = null) => String(en).replace(/\{(\w+)\}/g, (m, k) => args && Object.hasOwn(args, k) ? String(args[k]) : m);
   var MOD_FAILURE_LIMIT = 25;
   var MOD_KEYS_KEY = "dfjs-module-keys";
   var KEY_SPEC = /^(Shift\+)?[A-Za-z0-9]+$/;
@@ -80,7 +81,7 @@
     return `${e.shiftKey ? "Shift+" : ""}${e.code}`;
   }
   function createModBus({ storage: storage2 = null, say = () => {
-  }, warn = console.warn } = {}) {
+  }, warn = console.warn, text = null } = {}) {
     const listeners = /* @__PURE__ */ new Map();
     const mods = /* @__PURE__ */ new Map();
     const targets = /* @__PURE__ */ new Map();
@@ -195,7 +196,7 @@
       /**
        * A module's side: its handle. `dfo.on(event, fn)` works only for an event the manifest lists (others are refused, once,
        * with a warning); `dfo.store` is the module's own settings, apart from every other's; `dfo.say` a line over the game;
-       * `dfo.onKey('F7', fn, 'what it does')` an action on a key - F7 by default, the player's own key once they choose one; `dfo.retarget([x, z])` the place the compass marks, in place of the quest's; `dfo.markColour('#rrggbb')` the colour of the compass's mark; `dfo.api` the interface version this game speaks.
+       * `dfo.onKey('F7', fn, 'what it does')` an action on a key - F7 by default, the player's own key once they choose one; `dfo.retarget([x, z])` the place the compass marks, in place of the quest's; `dfo.markColour('#rrggbb')` the colour of the compass's mark; `dfo.t(key, english, args)` words in the player's language; `dfo.api` the interface version this game speaks.
        * @param {Manifest} manifest
        */
       register(manifest) {
@@ -238,8 +239,19 @@
               }
             }
           }),
-          say: (text) => {
-            if (mods.get(manifest.id)?.enabled) say(String(text));
+          say: (line) => {
+            if (mods.get(manifest.id)?.enabled) say(String(line));
+          },
+          /** Words in the player's language: the game's string table's row for `key` (a dotted name, `module.<id>.<word>` for a
+           *  module's own), else `en`, with each `{name}` filled from `args`. */
+          t: (key2, en, args = null) => {
+            if (text) {
+              try {
+                return text(String(key2), String(en), args);
+              } catch {
+              }
+            }
+            return englishText(en, args);
           },
           /** An action on a key: `spec` its default ('F7', 'Shift+F3'), `label` what it does (the keys panel's words). Answers a
            *  function that says the key it has now - a module that names its key to the player asks it there. */
@@ -397,6 +409,17 @@
   function keyName(spec) {
     return spec ? spec.replace(/\b(Key|Digit)(?=\w$)/, "") : "";
   }
+  function groupKeys(rows) {
+    const ids = [...new Set(rows.map((r) => r.id))];
+    const nameOf = (id) => rows.find((r) => r.id === id)?.name ?? id;
+    const heads = ids.map((id) => /^(.+?):\s+(.+)$/.exec(nameOf(id)));
+    const family = heads.length > 1 && heads.every((m) => m && m[1] === heads[0]?.[1]) ? heads[0][1] : "";
+    const short = (id, i) => {
+      const n = family ? heads[i][2] : nameOf(id);
+      return n.charAt(0).toUpperCase() + n.slice(1);
+    };
+    return { family, groups: ids.map((id, i) => ({ name: short(id, i), rows: rows.filter((r) => r.id === id) })) };
+  }
   var open = null;
   function openKeysPanel(bus2, { words }) {
     const w = words;
@@ -407,21 +430,23 @@
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
     box.setAttribute("aria-label", w.title());
-    box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483001;min-width:420px;max-width:90vw;max-height:85vh;overflow:auto;padding:16px 20px;font:18px/1.4 "Pixelify Sans",Georgia,serif;color:#f2e6c4;background:rgba(10,12,17,0.94);border:2px solid #c9962c;box-shadow:0 0 24px #000';
+    box.style.cssText = 'position:fixed;left:12px;top:64px;z-index:2147483001;width:300px;max-width:calc(100vw - 24px);max-height:calc(100vh - 180px);overflow:auto;padding:8px 10px;font:13px/1.3 "Pixelify Sans",Georgia,serif;color:#f2e6c4;background:rgba(10,12,17,0.86);border:1px solid #c9962c;box-shadow:0 0 10px #000';
     const title = document.createElement("h2");
     title.textContent = w.title();
-    title.style.cssText = "margin:0 0 6px;font-size:22px;color:#c9962c";
+    title.style.cssText = "margin:0 0 2px;font-size:15px;color:#c9962c";
+    const family = document.createElement("div");
+    family.style.cssText = "margin:0 0 4px;font-size:12px;opacity:0.8";
     const help = document.createElement("p");
     help.textContent = w.help();
-    help.style.cssText = "margin:0 0 12px";
+    help.style.cssText = "margin:0 0 6px;font-size:11px;opacity:0.8";
     const list = document.createElement("div");
     const status2 = document.createElement("p");
     status2.setAttribute("aria-live", "polite");
-    status2.style.cssText = "min-height:1.4em;margin:12px 0;color:#f2cf4a";
+    status2.style.cssText = "min-height:1.3em;margin:6px 0;font-size:12px;color:#f2cf4a";
     const done = document.createElement("button");
     done.textContent = w.done();
-    box.append(title, help, list, status2, done);
-    const buttonStyle = "font:inherit;color:inherit;background:#1d2230;border:1px solid #c9962c;padding:4px 12px;cursor:pointer;min-width:110px";
+    box.append(title, family, help, list, status2, done);
+    const buttonStyle = "font:inherit;color:inherit;background:#1d2230;border:1px solid #c9962c;padding:1px 8px;cursor:pointer;min-width:72px";
     done.style.cssText = buttonStyle;
     let waiting = null;
     function render(focusKey = null) {
@@ -431,24 +456,34 @@
         list.textContent = w.none();
         return;
       }
-      for (const r of rows) {
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:16px;margin:4px 0";
-        const what = document.createElement("span");
-        what.textContent = `${r.name}: ${r.label || r.key}`;
-        const b = document.createElement("button");
-        b.style.cssText = buttonStyle;
-        const isWaiting = waiting?.id === r.id && waiting.key === r.key;
-        b.textContent = isWaiting ? w.press() : keyName(r.spec);
-        b.setAttribute("aria-label", `${what.textContent}. ${w.key()}: ${keyName(r.spec)}`);
-        b.onclick = () => {
-          waiting = { id: r.id, key: r.key, label: r.label || r.key };
-          status2.textContent = w.pressFor(what.textContent);
-          render(`${r.id} ${r.key}`);
-        };
-        row.append(what, b);
-        list.append(row);
-        if (focusKey === `${r.id} ${r.key}`) b.focus();
+      const g = groupKeys(rows);
+      family.textContent = g.family;
+      family.style.display = g.family ? "" : "none";
+      for (const group of g.groups) {
+        const head = document.createElement("div");
+        head.textContent = group.name;
+        head.style.cssText = "margin:6px 0 1px;font-size:12px;color:#c9962c";
+        list.append(head);
+        for (const r of group.rows) {
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 0 2px 6px";
+          const what = document.createElement("span");
+          what.textContent = r.label || r.key;
+          const said = `${group.name}: ${what.textContent}`;
+          const b = document.createElement("button");
+          b.style.cssText = buttonStyle;
+          const isWaiting = waiting?.id === r.id && waiting.key === r.key;
+          b.textContent = isWaiting ? w.press() : keyName(r.spec);
+          b.setAttribute("aria-label", `${said}. ${w.key()}: ${keyName(r.spec)}`);
+          b.onclick = () => {
+            waiting = { id: r.id, key: r.key, label: r.label || r.key };
+            status2.textContent = w.pressFor(said);
+            render(`${r.id} ${r.key}`);
+          };
+          row.append(what, b);
+          list.append(row);
+          if (focusKey === `${r.id} ${r.key}`) b.focus();
+        }
       }
     }
     function choose(e) {

@@ -1,7 +1,7 @@
 From 4203e4a8b01509af0a7b83ae9cf808f3039e8d83 Mon Sep 17 00:00:00 2001
 From: BearddOddity <saintlyendless@gmail.com>
 Date: Tue, 13 Oct 2026 16:31:51 -0500
-Subject: [PATCH 01/10] Add a mod API: client-side modules written against one
+Subject: [PATCH 01/11] Add a mod API: client-side modules written against one
  small, stable interface
 
 A module is a folder (module.json + one ES module) that names itself, the

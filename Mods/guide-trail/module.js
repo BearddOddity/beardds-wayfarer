@@ -705,7 +705,16 @@ var REPLAN_MOVE_M = 3;
 var MARK_FRESH_MS = 600;
 var HUD_LIVE_MS = 400;
 var JUMP_M = 25;
+var english = (_key, en, args = null) => en.replace(/\{(\w+)\}/g, (m, k) => args && Object.hasOwn(args, k) ? String(args[k]) : m);
 function setup(dfo) {
+  const tx = (key2, en, args = null) => typeof dfo.t === "function" ? dfo.t(key2, en, args) : english(key2, en, args);
+  const lookWord = (look2) => ({
+    gold: () => tx("module.guideTrail.look.gold", "gold"),
+    ivory: () => tx("module.guideTrail.look.ivory", "ivory"),
+    cyan: () => tx("module.guideTrail.look.cyan", "cyan"),
+    magenta: () => tx("module.guideTrail.look.magenta", "magenta"),
+    large: () => tx("module.guideTrail.look.large", "large")
+  })[look2]?.() ?? look2;
   let on = dfo.store.get("on", true);
   let look = dfo.store.get("look", "gold");
   if (!GUIDE_STYLES[look]) look = "gold";
@@ -774,15 +783,15 @@ function setup(dfo) {
     e.preventDefault?.();
     on = !on;
     dfo.store.set("on", on);
-    dfo.say(on ? "Guide trail on" : "Guide trail off");
-  }, "Guide trail on / off");
+    dfo.say(on ? tx("module.guideTrail.on", "Guide trail on") : tx("module.guideTrail.off", "Guide trail off"));
+  }, tx("module.guideTrail.keyOnOff", "Guide trail on / off"));
   dfo.onKey("Shift+F4", (e) => {
     if (!playing()) return;
     e.preventDefault?.();
     look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
     dfo.store.set("look", look);
-    dfo.say(`Guide trail look: ${look}`);
-  }, "Guide trail look");
+    dfo.say(tx("module.guideTrail.lookSet", "Guide trail look: {look}", { look: lookWord(look) }));
+  }, tx("module.guideTrail.keyLook", "Guide trail look"));
 }
 export {
   setup as default

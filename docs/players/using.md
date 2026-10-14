@@ -92,7 +92,8 @@ The mod helps you follow quests, but keeps the game's rule that **you ask around
 
 ## Changing keys
 
-Press **Shift+F1** (or **Settings > Mods & files > Modules > Change module keys**). Choose an action, then press its new key.
+Press **Shift+F1** (or **Settings > Mods & files > Modules > Change module keys**). A small panel opens at the **left edge** of
+the screen, so the middle stays clear if an enemy appears. Choose an action, then press its new key.
 
 - **Escape** cancels. **Backspace** puts the action's first key back.
 - A key another action already uses is refused, and the panel says which action has it.

@@ -11,6 +11,9 @@
 // change them (Shift+F1, the game's keys panel):
 //   F4        trail on / off
 //   Shift+F4  cycles the look: gold, ivory, cyan, magenta, large
+//
+// Its words go through the game's own text core (`dfo.t`): the player's language where the game's table has the row, else the
+// English here. It ships no translations.
 import { smoothPath, GUIDE_STYLES, GUIDE_STYLE_ORDER } from './embers.js';
 import { createGuideTrailFx } from './fx.js';
 import { createRouter, planToMark, planKnown } from './route.js';
@@ -22,7 +25,19 @@ const MARK_FRESH_MS = 600;   // the compass stops handing over a mark when there
 const HUD_LIVE_MS = 400;     // the HUD draws every frame while the game is being played; a menu, a dialog or a map stops it
 const JUMP_M = 25;           // a camera jump this far is a new place: what the router learned of the old one is dropped
 
+/** The English with each `{name}` filled: the words of a host with no text core (no `dfo.t`). Pure. */
+const english = (_key, en, args = null) => en.replace(/\{(\w+)\}/g, (m, k) => (args && Object.hasOwn(args, k) ? String(args[k]) : m));
+
 export default function setup(dfo) {
+  /** Words in the player's language (the game's own table), else the English. */
+  const tx = (key, en, args = null) => (typeof dfo.t === 'function' ? dfo.t(key, en, args) : english(key, en, args));
+  const lookWord = (look) => ({
+    gold: () => tx('module.guideTrail.look.gold', 'gold'),
+    ivory: () => tx('module.guideTrail.look.ivory', 'ivory'),
+    cyan: () => tx('module.guideTrail.look.cyan', 'cyan'),
+    magenta: () => tx('module.guideTrail.look.magenta', 'magenta'),
+    large: () => tx('module.guideTrail.look.large', 'large'),
+  })[look]?.() ?? look;
   let on = dfo.store.get('on', true);
   let look = dfo.store.get('look', 'gold');
   if (!GUIDE_STYLES[look]) look = 'gold';
@@ -76,11 +91,11 @@ export default function setup(dfo) {
     fx.draw(wayToMark(feet, world), feet, { style: GUIDE_STYLES[look] });
   });
 
-  dfo.onKey('F4', (e) => { if (!playing()) return; e.preventDefault?.(); on = !on; dfo.store.set('on', on); dfo.say(on ? 'Guide trail on' : 'Guide trail off'); }, 'Guide trail on / off');
+  dfo.onKey('F4', (e) => { if (!playing()) return; e.preventDefault?.(); on = !on; dfo.store.set('on', on); dfo.say(on ? tx('module.guideTrail.on', 'Guide trail on') : tx('module.guideTrail.off', 'Guide trail off')); }, tx('module.guideTrail.keyOnOff', 'Guide trail on / off'));
   dfo.onKey('Shift+F4', (e) => {
     if (!playing()) return;
     e.preventDefault?.();
     look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
-    dfo.store.set('look', look); dfo.say(`Guide trail look: ${look}`);
-  }, 'Guide trail look');
+    dfo.store.set('look', look); dfo.say(tx('module.guideTrail.lookSet', 'Guide trail look: {look}', { look: lookWord(look) }));
+  }, tx('module.guideTrail.keyLook', 'Guide trail look'));
 }

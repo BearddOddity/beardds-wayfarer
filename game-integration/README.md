@@ -92,7 +92,20 @@ A point-by-point list is in [docs/developers/review-checklist.md](../docs/develo
 
 4. After the API ships, players no longer need the [dev-review loader](../dev-review/README.md).
 
-## 5. Keeping it alive
+## 5. Translating the mod's words
+
+The modules ship **no translations**. Every word they show goes through `dfo.t(key, english, args)`, which reads your own
+text core (`t`, `systems/textManager.js`) in the language the player chose. So the mod follows the game's language with no
+extra work, as soon as your catalog holds its rows:
+
+1. Let `tools/l10nExtract.mjs` read the modules too: besides `t` calls in `src/`, the `dfo.t('module.<id>.<word>', '<English>')`
+   calls in `modules/*/module.js` and `modules/*/src/*.js` (each key and English is a literal, so it reads them the same way).
+2. Run your translation pipeline as for any new rows. The mod's ~50 strings are drafted with the rest of the game's.
+
+Until then the mod's words show in English. (The patches stop short of step 1 on purpose: the catalog checks require every
+row drafted in every language, and the translations are yours to make, not the mod's.)
+
+## 6. Keeping it alive
 
 - A new event: add it to `MOD_EVENTS` with `since`, raise `MOD_API_VERSION`, announce it at its seam, pin it in the test.
 - Never rename an event or reorder its arguments; add arguments at the end only.

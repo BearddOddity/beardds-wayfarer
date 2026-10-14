@@ -88,6 +88,7 @@ Frozen, and exactly these members. There is no door to the network, the disk or 
 | `dfo.on(event, fn)` | listen. Answers a function that stops listening. An event the manifest does not list is refused with a warning. |
 | `dfo.store.get(key, fallback)`, `dfo.store.set(key, value)` | the module's own settings, kept by the game |
 | `dfo.say(text)` | a line over the game |
+| `dfo.t(key, english, args)` | words in the player's language: the game's own string table, in the language the player chose for DFO, else `english`; each `{name}` filled from `args`. Use keys `module.<id>.<word>` (camelCase, no hyphens). A module ships no translations: its words are translated with the game's own. |
 | `dfo.onKey(spec, fn, label)` | an action on a key (`'F7'`, `'Shift+F3'`). The player may move it. Answers a function that says the key it has now. |
 | `dfo.retarget([x, z] or [x, z, y], kind)` | point the compass (and every `questMark` listener) at a place; `kind` is a lowercase word. `null` gives the compass back. The last ask by an enabled module wins. |
 | `dfo.markColour('#rrggbb')` | colour the compass's own mark. `null` gives it the game's gold back. The last ask by an enabled module wins. |

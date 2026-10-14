@@ -20,6 +20,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
       size-capped; nothing past them.
 - [ ] **Seams:** each event is announced at its seam, pinned by source in the tests: `enhancedHud` (questMark), `hostMagic`
       (drawFx), `questBridge` (quests), `heldMap` (mapPick). An event nobody listens to costs one `has()` lookup.
+- [ ] **Words:** `dfo.t(key, en, args)` reads the game's `t`; English where there is no row, or no text core. Every word the three modules show goes through it (a test reads them).
 - [ ] **Client-side only:** `modApi.js` imports nothing of `net/`; no wire or relay change.
 
 ## 2. Keys
@@ -86,5 +87,5 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 - On the released client through the loader there is no door list, so the trail stops at the nearest reachable cell when the
   goal is inside a building.
 - Destinations are set on the dungeon's flat map only (the 3D map's right button turns the view). By choice.
-- Module messages are English; the handle has no text core yet.
+- Module words go through the game's text core (`dfo.t`): English until the game's catalog takes in their keys (`l10nExtract` reads `src/` only today). On the dev-review loader they are always English (the released game's text core is out of reach).
 - No module uses the `quests` event yet. It is part of interface 1 for future modules.

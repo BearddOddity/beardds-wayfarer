@@ -1,7 +1,7 @@
 {
   "id": "guide-trail",
   "name": "Beardd's Wayfarer: guide trail",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "api": 1,
   "author": "Beardd (BearddOddity)",
   "description": "Embers drift along the way to the place the compass marks: round walls, up hills and stairs, and between a dungeon's floors by the way your map knows. F4 on/off, Shift+F4 its look.",

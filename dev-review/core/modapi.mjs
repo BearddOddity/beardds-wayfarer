@@ -70,6 +70,7 @@ function moduleCompatible(manifest, gameApi = MOD_API_VERSION) {
   for (const e of manifest.events) if (MOD_EVENTS[e].since > manifest.api) return { ok: false, reason: `'${e}' arrived in interface ${MOD_EVENTS[e].since}, after the ${manifest.api} the module declares` };
   return { ok: true, reason: "" };
 }
+var englishText = (en, args = null) => String(en).replace(/\{(\w+)\}/g, (m, k) => args && Object.hasOwn(args, k) ? String(args[k]) : m);
 var MOD_FAILURE_LIMIT = 25;
 var MOD_KEYS_KEY = "dfjs-module-keys";
 var KEY_SPEC = /^(Shift\+)?[A-Za-z0-9]+$/;
@@ -80,7 +81,7 @@ function keySpec(e) {
   return `${e.shiftKey ? "Shift+" : ""}${e.code}`;
 }
 function createModBus({ storage = null, say = () => {
-}, warn = console.warn } = {}) {
+}, warn = console.warn, text = null } = {}) {
   const listeners = /* @__PURE__ */ new Map();
   const mods = /* @__PURE__ */ new Map();
   const targets = /* @__PURE__ */ new Map();
@@ -195,7 +196,7 @@ function createModBus({ storage = null, say = () => {
     /**
      * A module's side: its handle. `dfo.on(event, fn)` works only for an event the manifest lists (others are refused, once,
      * with a warning); `dfo.store` is the module's own settings, apart from every other's; `dfo.say` a line over the game;
-     * `dfo.onKey('F7', fn, 'what it does')` an action on a key - F7 by default, the player's own key once they choose one; `dfo.retarget([x, z])` the place the compass marks, in place of the quest's; `dfo.markColour('#rrggbb')` the colour of the compass's mark; `dfo.api` the interface version this game speaks.
+     * `dfo.onKey('F7', fn, 'what it does')` an action on a key - F7 by default, the player's own key once they choose one; `dfo.retarget([x, z])` the place the compass marks, in place of the quest's; `dfo.markColour('#rrggbb')` the colour of the compass's mark; `dfo.t(key, english, args)` words in the player's language; `dfo.api` the interface version this game speaks.
      * @param {Manifest} manifest
      */
     register(manifest) {
@@ -238,8 +239,19 @@ function createModBus({ storage = null, say = () => {
             }
           }
         }),
-        say: (text) => {
-          if (mods.get(manifest.id)?.enabled) say(String(text));
+        say: (line) => {
+          if (mods.get(manifest.id)?.enabled) say(String(line));
+        },
+        /** Words in the player's language: the game's string table's row for `key` (a dotted name, `module.<id>.<word>` for a
+         *  module's own), else `en`, with each `{name}` filled from `args`. */
+        t: (key2, en, args = null) => {
+          if (text) {
+            try {
+              return text(String(key2), String(en), args);
+            } catch {
+            }
+          }
+          return englishText(en, args);
         },
         /** An action on a key: `spec` its default ('F7', 'Shift+F3'), `label` what it does (the keys panel's words). Answers a
          *  function that says the key it has now - a module that names its key to the player asks it there. */
@@ -286,6 +298,7 @@ export {
   MOD_FAILURE_LIMIT,
   MOD_KEYS_KEY,
   createModBus,
+  englishText,
   keySpec,
   moduleCompatible,
   parseManifest

@@ -24,6 +24,9 @@
 // place: the pins move with it. Hears `mapPick` (the map's right click), `questMark` (the HUD's heartbeat, where the player stands) and `drawFx`
 // (the camera, the world to aim at and the region map's waypoints); reaches nothing else.
 //
+// WORDS: every line it says goes through the game's own text core (`dfo.t`): the player's language where the game's table has
+// the row, else the English here. It ships no translations.
+//
 // Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F2 and F3 mean other things). The player may
 // change them (Shift+F1, the game's keys panel); the lines below name the key the player has now.
 const HUD_LIVE_MS = 400;
@@ -40,7 +43,12 @@ const LEVEL_M = 2.5;      // a place that knows its floor is reached only on it 
 const EYE_M = 1.6;        // the eye above the feet
 const QUEST = -1, OUT = -2;   // what the compass follows besides a pin: the game's own quest, or the exit; a waypoint is its 'wp:' id
 
+/** The English with each `{name}` filled: the words of a host with no text core (no `dfo.t`). Pure. */
+const english = (_key, en, args = null) => en.replace(/\{(\w+)\}/g, (m, k) => (args && Object.hasOwn(args, k) ? String(args[k]) : m));
+
 export default function setup(dfo) {
+  /** Words in the player's language (the game's own table), else the English. */
+  const tx = (key, en, args = null) => (typeof dfo.t === 'function' ? dfo.t(key, en, args) : english(key, en, args));
   // a place is [x, z], or [x, z, y] where its floor is known (the exit, a dungeon map's own pin): then the compass, the waypoint and
   // the trail are told its floor, and it is reached on that floor alone
   /** @type {{ xz: number[], map: boolean }[]} */ let pins = [];
@@ -61,8 +69,11 @@ export default function setup(dfo) {
   const placeOf = (i) => { const w = wayOf(i); return w ? [w.x, w.z] : i === OUT ? exit : i >= 0 ? pins[i]?.xz ?? null : null; };
   const kindOf = (i) => (isWay(i) ? 'waypoint' : i === OUT ? 'exit' : pins[i]?.map ? 'destination' : 'pin');   // what the place is: the waypoint colours it by this
   const follow = (i) => { active = i; dfo.retarget(placeOf(i), kindOf(i)); };
-  const label = (i) => (isWay(i) ? wayOf(i)?.name ?? 'the waypoint' : i === QUEST ? 'the quest' : i === OUT ? 'the exit' : pins[i].map ? 'your destination' : `pin ${i + 1}`);
-  const metres = (xz) => (player ? `${Math.round(Math.hypot(xz[0] - player[0], xz[1] - player[1]))} m` : '');
+  const label = (i) => (isWay(i) ? wayOf(i)?.name ?? tx('module.pins.what.waypoint', 'the waypoint')
+    : i === QUEST ? tx('module.pins.what.quest', 'the quest')
+      : i === OUT ? tx('module.pins.what.exit', 'the exit')
+        : pins[i].map ? tx('module.pins.what.destination', 'your destination') : tx('module.pins.what.pin', 'pin {n}', { n: i + 1 }));
+  const metres = (xz) => (player ? tx('module.pins.metres', '{n} m', { n: Math.round(Math.hypot(xz[0] - player[0], xz[1] - player[1])) }) : '');
   // the key the player has now for an action (a host older than the keys panel answers nothing: the module's own key)
   const keyFor = (get, own) => (typeof get === 'function' && get() ? get() : own).replace(/\b(Key|Digit)(?=\w$)/, '');
   let dropKey = null, removeKey = null;
@@ -80,7 +91,7 @@ export default function setup(dfo) {
     const at = placeOf(active);
     const onItsFloor = !Number.isFinite(at?.[2]) || !eye || Math.abs(eye[1] - EYE_M - at[2]) < LEVEL_M;
     if (active !== QUEST && at && player && onItsFloor && Math.hypot(at[0] - player[0], at[1] - player[1]) < (isWay(active) ? WAY_REACH_M : REACH_M)) {
-      dfo.say(`Reached ${label(active)}`);
+      dfo.say(tx('module.pins.reached', 'Reached {what}', { what: label(active) }));
       if (isWay(active)) { aside.add(active); follow(QUEST); } else if (active === OUT) follow(QUEST); else drop(active);
     }
   });
@@ -118,7 +129,7 @@ export default function setup(dfo) {
     let fresh = null;
     if (followedSeen) for (const id of ids) if (!followedSeen.has(id)) fresh = id;
     followedSeen = ids;
-    if (fresh) { follow(fresh); dfo.say(`Following ${label(fresh)} - ${metres(placeOf(fresh))}`); return; }
+    if (fresh) { follow(fresh); dfo.say(tx('module.pins.followingAt', 'Following {what} - {dist}', { what: label(fresh), dist: metres(placeOf(fresh)) })); return; }
     if (resumeWay && active === QUEST && ids.has(resumeWay)) follow(resumeWay);
     resumeWay = null;
     if (isWay(active)) {
@@ -132,11 +143,11 @@ export default function setup(dfo) {
   dfo.on('mapPick', (_sheet, dx, dz, quest, onExit, dy) => {
     const at = pins.findIndex((p) => p.map);
     if (dx === null || dx === undefined) {   // the flag was taken away
-      if (flagIsExit) { dfo.say('Exit cleared'); forgetExit(); }
-      else if (at >= 0) { dfo.say('Destination cleared'); drop(at); }
+      if (flagIsExit) { dfo.say(tx('module.pins.exitCleared', 'Exit cleared')); forgetExit(); }
+      else if (at >= 0) { dfo.say(tx('module.pins.destinationCleared', 'Destination cleared')); drop(at); }
       return;
     }
-    if (!player) { dfo.say('No destination: stand in the world first'); return; }
+    if (!player) { dfo.say(tx('module.pins.noDestination', 'No destination: stand in the world first')); return; }
     const xz = Number.isFinite(dy) && eye ? [player[0] + dx, player[1] + dz, eye[1] - EYE_M + dy] : [player[0] + dx, player[1] + dz];   // a pin on any floor
     if (xz.length === 3) {   // a map's pin rides a little over its surface: the floor under it is the place (the trail is reached on its floor)
       const f = world?.floor?.(xz[0], xz[2] + 0.5, xz[1]);
@@ -147,7 +158,7 @@ export default function setup(dfo) {
       exit = onExit !== true || nearCameIn ? cameIn : xz;   // the way out stands on the floor the player came in on
       flagIsExit = true;
       follow(OUT);
-      dfo.say(`Exit pinned - ${metres(exit)}`);
+      dfo.say(tx('module.pins.exitPinned', 'Exit pinned - {dist}', { dist: metres(exit) }));
       return;
     }
     flagIsExit = false;
@@ -155,34 +166,34 @@ export default function setup(dfo) {
     if (pins.length >= MAX_PINS) drop(0);
     pins.push({ xz, map: true });
     follow(pins.length - 1);
-    dfo.say(`${quest ? 'Quest location' : 'Destination'} set - ${metres(xz)}`);
+    dfo.say(quest ? tx('module.pins.questSet', 'Quest location set - {dist}', { dist: metres(xz) }) : tx('module.pins.destinationSet', 'Destination set - {dist}', { dist: metres(xz) }));
   });
 
   function dropPin() {
-    if (!eye || !aim) { dfo.say('No pin: the view is not up'); return; }
-    if (pins.length >= MAX_PINS) { dfo.say(`No pin: ${MAX_PINS} already - remove one (${keyFor(removeKey, 'Shift+F2')})`); return; }
+    if (!eye || !aim) { dfo.say(tx('module.pins.noView', 'No pin: the view is not up')); return; }
+    if (pins.length >= MAX_PINS) { dfo.say(tx('module.pins.full', 'No pin: {max} already - remove one ({key})', { max: MAX_PINS, key: keyFor(removeKey, 'Shift+F2') })); return; }
     const flat = Math.hypot(aim[0], aim[2]) || 1;
     let d = AHEAD_M / flat;   // 25 m along the ground at any pitch
     const hit = world?.ray?.(eye, aim, 120);
     if (hit !== null && hit !== undefined) d = Math.max(0.5, hit - 0.3);
     pins.push({ xz: [eye[0] + aim[0] * d, eye[2] + aim[2] * d], map: false });
     follow(pins.length - 1);
-    dfo.say(`Pin ${pins.length} dropped - following it`);
+    dfo.say(tx('module.pins.dropped', 'Pin {n} dropped - following it', { n: pins.length }));
   }
 
-  dropKey = dfo.onKey('F2', () => { if (playing()) dropPin(); }, 'Drop a pin');
+  dropKey = dfo.onKey('F2', () => { if (playing()) dropPin(); }, tx('module.pins.keyDrop', 'Drop a pin'));
   removeKey = dfo.onKey('Shift+F2', () => {
     if (!playing()) return;
-    if (active === QUEST) { dfo.say('Nothing followed but the quest'); return; }
-    if (isWay(active)) { dfo.say(`${label(active)} put aside - follow it on the map again to bring it back`); aside.add(active); follow(QUEST); return; }
-    dfo.say(`${label(active)[0].toUpperCase()}${label(active).slice(1)} removed`);
+    if (active === QUEST) { dfo.say(tx('module.pins.nothingFollowed', 'Nothing followed but the quest')); return; }
+    if (isWay(active)) { dfo.say(tx('module.pins.putAside', '{what} put aside - follow it on the map again to bring it back', { what: label(active) })); aside.add(active); follow(QUEST); return; }
+    dfo.say(tx('module.pins.removed', '{what} removed', { what: `${label(active)[0].toUpperCase()}${label(active).slice(1)}` }));
     if (active === OUT) forgetExit(); else drop(active);
-  }, 'Remove the followed place');
+  }, tx('module.pins.keyRemove', 'Remove the followed place'));
   dfo.onKey('F3', () => {
     if (!playing()) return;
     const order = [QUEST, ...(exit ? [OUT] : []), ...pins.keys(), ...ways.map((w) => `wp:${w.id}`).filter((id) => !aside.has(id))];
-    if (order.length < 2) { dfo.say(`No places set - right-click the map, or ${keyFor(dropKey, 'F2')} drops a pin`); return; }
+    if (order.length < 2) { dfo.say(tx('module.pins.noPlaces', 'No places set - right-click the map, or {key} drops a pin', { key: keyFor(dropKey, 'F2') })); return; }
     follow(order[(order.indexOf(active) + 1) % order.length]);
-    dfo.say(`Following ${label(active)}`);
-  }, 'Follow the next place');
+    dfo.say(tx('module.pins.following', 'Following {what}', { what: label(active) }));
+  }, tx('module.pins.keyNext', 'Follow the next place'));
 }

@@ -14,7 +14,7 @@ my-module/
 ```
 
 - `id` is the folder's name (`a-z`, `0-9`, `-`). `version` is yours. `events` is everything the module hears.
-- `dfo` is the module's own handle: `on`, `store`, `say`, `onKey`, `retarget`, `markColour`, `api`, `id` - and nothing else. No door to the net, the disk
+- `dfo` is the module's own handle: `on`, `store`, `say`, `t`, `onKey`, `retarget`, `markColour`, `api`, `id` - and nothing else. No door to the net, the disk
   or another module.
 - Events (interface 1): `questMark` (the compass's mark, every HUD frame), `quests` (the quest views, after each look),
   `mapPick` (a right click on the local map, as metres from the player), `drawFx` (the world pass, with the renderer for drawing

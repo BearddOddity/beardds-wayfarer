@@ -8,6 +8,9 @@
 // THE COMPASS'S DIAMOND takes the diamond's own colour (the player: "the diamond icon should match the diamond compass icon"):
 // the quest's look, or the kind's colour for a pin, destination, exit or waypoint; gold, and the waypoint off, leave the game's own.
 //
+// WORDS: every word it shows goes through the game's own text core (`dfo.t`), so it reads in the language the player chose
+// for the game wherever the game's table has the row, and in the English here until it does. It ships no translations.
+//
 // Keys (only while the game's HUD is up; the player may change them - Shift+F1): F7 on / off, Shift+F3 cycles the look (gold, ivory, cyan, magenta, large). Settings: this module's own store (`fov` - match the game's Field of View setting, default 65 - and `height`).
 const GOLD = '#c9962c';        // the game's own quest-mark gold
 const HUD_LIVE_MS = 400;       // the HUD draws every frame while the game is played; a menu, a dialog, a map or a loading screen stops it (and the keys)
@@ -63,21 +66,44 @@ export const MARK_KINDS = Object.freeze({
   waypoint: Object.freeze({ css: '#f07b3f', word: 'Waypoint' }),   // the region map's own, followed (Okabe-Ito's vermilion)
   place: Object.freeze({ css: '#f2e6c4', word: 'Place' }),
 });
+/** A kind's word in the player's language. @param {(key: string, en: string, args?: any) => string} tx @param {string} kind */
+const kindWord = (tx, kind) => ({
+  pin: () => tx('module.waypoint.kind.pin', 'Pin'),
+  destination: () => tx('module.waypoint.kind.destination', 'Destination'),
+  exit: () => tx('module.waypoint.kind.exit', 'Exit'),
+  waypoint: () => tx('module.waypoint.kind.waypoint', 'Waypoint'),
+  place: () => tx('module.waypoint.kind.place', 'Place'),
+})[kind]?.() ?? MARK_KINDS[kind]?.word ?? '';
+
+/** The English with each `{name}` filled: the words of a host with no text core (no `dfo.t`). Pure. */
+export const english = (/** @type {string} */ _key, /** @type {string} */ en, /** @type {Record<string, unknown>|null} */ args = null) => en.replace(/\{(\w+)\}/g, (m, k) => (args && Object.hasOwn(args, k) ? String(args[k]) : m));
+/** A look's name in the player's language. @param {(key: string, en: string, args?: any) => string} tx @param {string} look */
+const lookWord = (tx, look) => ({
+  gold: () => tx('module.waypoint.look.gold', 'gold'),
+  ivory: () => tx('module.waypoint.look.ivory', 'ivory'),
+  cyan: () => tx('module.waypoint.look.cyan', 'cyan'),
+  magenta: () => tx('module.waypoint.look.magenta', 'magenta'),
+  large: () => tx('module.waypoint.look.large', 'large'),
+})[look]?.() ?? look;
 
 /** The diamond's colour: the kind's, else the quest's look. Pure. @param {{ css: string }|null} kind @param {string} look */
 export const diamondColour = (kind, look) => kind?.css ?? (WAYPOINT_LOOKS[look] ?? WAYPOINT_LOOKS.gold).css;
 
-const distText = (d) => (d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d)} m`);
+const distText = (d, tx) => (d >= 1000 ? tx('module.waypoint.km', '{n} km', { n: (d / 1000).toFixed(1) }) : tx('module.waypoint.metres', '{n} m', { n: Math.round(d) }));
 
-/** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure. @param {number} d metres @param {number} mps metres a second (0 when standing) */
-export function distLabel(d, mps) {
-  const base = distText(d);
+/** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure but for `tx` (the
+ *  words; English by default). @param {number} d metres @param {number} mps metres a second (0 when standing) */
+export function distLabel(d, mps, tx = english) {
+  const base = distText(d, tx);
   if (!(mps > 0.8) || d < 15) return base;
   const s = d / mps;
-  return `${base} - ${s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`}`;
+  const time = s < 90 ? tx('module.waypoint.seconds', '{n} s', { n: Math.round(s) }) : tx('module.waypoint.minutes', '{n} min', { n: Math.round(s / 60) });
+  return `${base} - ${time}`;
 }
 
 export default function setup(dfo) {
+  /** Words in the player's language (the game's own table), else the English. */
+  const tx = (/** @type {string} */ key, /** @type {string} */ en, /** @type {any} */ args = null) => (typeof dfo.t === 'function' ? dfo.t(key, en, args) : english(key, en, args));
   let on = dfo.store.get('on', true);
   let look = dfo.store.get('look', 'gold');
   if (!WAYPOINT_LOOKS[look]) look = 'gold';
@@ -95,7 +121,7 @@ export default function setup(dfo) {
     }
     lastP = p ? { x: p[0], z: p[1], t: now } : null;
     hudSeen = now;
-    mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], ty: Number.isFinite(q[2]) ? q[2] : null, px: p[0], pz: p[1], h, kind: MARK_KINDS[kind] ?? null } : null;   // an older host says no kind (the quest's look) and no height
+    mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], ty: Number.isFinite(q[2]) ? q[2] : null, px: p[0], pz: p[1], h, kind: MARK_KINDS[kind] ?? null, kindName: MARK_KINDS[kind] ? kind : null } : null;   // an older host says no kind (the quest's look) and no height
     tintCompass();
   });
   let tint = null;   // the colour last asked of the compass's diamond
@@ -163,11 +189,11 @@ export default function setup(dfo) {
     wp.style.setProperty('--c', diamondColour(mark.kind, look));
     wp.classList.toggle('big', L.big);
     wp.style.display = '';
-    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace);
+    const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace, tx);
     // a mark on another floor says so (the distance is along the ground) - only a mark whose floor the game or a module named: in the
     // open world a far spot's lower ground is no floor (the player: a region waypoint read 'below - 1.9 km')
-    const floorWord = mark.ty === null ? '' : level > OTHER_FLOOR_M ? 'above - ' : level < -OTHER_FLOOR_M ? 'below - ' : '';
-    ui.dist.textContent = `${mark.kind ? `${mark.kind.word} - ` : ''}${floorWord}${dist}`;
+    const floorWord = mark.ty === null ? '' : level > OTHER_FLOOR_M ? `${tx('module.waypoint.above', 'above')} - ` : level < -OTHER_FLOOR_M ? `${tx('module.waypoint.below', 'below')} - ` : '';
+    ui.dist.textContent = `${mark.kind ? `${kindWord(tx, mark.kindName)} - ` : ''}${floorWord}${dist}`;
     // THE WORLD'S OWN PERSPECTIVE wherever the camera is handed: on the screen, the diamond stands on the spot; off it (to a side,
     // behind, or high over the player's head) an arrow waits on the screen's edge the way the mark lies, and moves smoothly round
     // it as the player turns (the player: "it keeps moving" - it jumped to the bearing at a fixed height). The bearing and the fov
@@ -201,10 +227,10 @@ export default function setup(dfo) {
   requestAnimationFrame(frame);
 
   // keys, only while the game's HUD is up: in a menu, a dialog or a map F7 and F3 mean other things
-  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? 'Quest waypoint on' : 'Quest waypoint off'); }, 'Waypoint on / off');
+  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? tx('module.waypoint.on', 'Quest waypoint on') : tx('module.waypoint.off', 'Quest waypoint off')); }, tx('module.waypoint.keyOnOff', 'Waypoint on / off'));
   dfo.onKey('Shift+F3', () => {
     if (!playing()) return;
     look = LOOK_ORDER[(LOOK_ORDER.indexOf(look) + 1) % LOOK_ORDER.length];
-    dfo.store.set('look', look); tintCompass(); dfo.say(`Waypoint look: ${look}`);
-  }, 'Waypoint look');
+    dfo.store.set('look', look); tintCompass(); dfo.say(tx('module.waypoint.lookSet', 'Waypoint look: {look}', { look: lookWord(tx, look) }));
+  }, tx('module.waypoint.keyLook', 'Waypoint look'));
 }

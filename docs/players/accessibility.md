@@ -28,8 +28,8 @@ directions are hard to follow. A compass needle alone is not enough for many peo
 
 ## Not done yet
 
-- Messages from the mod ("Pin 1 dropped") are in **English only**. The game's own panels are translated; the modules have no
-  translation support yet.
+- The mod's words follow **the language you chose for DFO**: they come from the game's own translations. Until the game's
+  translations include the mod's words, they show in English. The mod ships no translation files of its own.
 - Pins and destinations last only until you leave the place (a door, a dungeon, travel). They are not saved.
 - There is no sound cue yet for arriving or for the direction of the place.
 - A text-only mode (the distance and direction read out, with no diamond) would help screen-reader users in the world itself.
