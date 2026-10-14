@@ -1,0 +1,27 @@
+From e1f6031f726f51e9163f75fe019293c72eb576bb Mon Sep 17 00:00:00 2001
+From: BearddOddity <beardedoddity@gmail.com>
+Date: Tue, 13 Oct 2026 17:37:14 -0500
+Subject: [PATCH 5/9] Quest panel: the place line reads the target words'
+ where, not the object
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ modules/quest-tracker/module.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/modules/quest-tracker/module.js b/modules/quest-tracker/module.js
+index 15bd6777fa..5dc3404b9e 100644
+--- a/modules/quest-tracker/module.js
++++ b/modules/quest-tracker/module.js
+@@ -60,7 +60,7 @@ export default function setup(dfo) {
+     if (!live || !on || !quests.length) { el.style.display = 'none'; return; }
+     el.style.display = '';
+     const rows = quests.slice(0, maxQuests()).map((q) => ({
+-      title: q.title || q.name || 'Quest', main: !!q.main, where: q.words || '', urgent: !!q.urgent,
++      title: q.title || q.name || 'Quest', main: !!q.main, where: typeof q.words === 'string' ? q.words : (q.words?.where || ''), urgent: !!q.urgent,
+       left: timeLeft(q.clockSeconds), open: opening(q.latest?.lines),
+     }));
+     const key = JSON.stringify([rows, quests.length]);
+-- 
+2.53.0.windows.1
+

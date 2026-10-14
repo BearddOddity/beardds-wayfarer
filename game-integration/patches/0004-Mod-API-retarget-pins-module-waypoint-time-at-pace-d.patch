@@ -1,0 +1,1056 @@
+From 23c7d746568979187906e60bd5d2b526150f9c78 Mon Sep 17 00:00:00 2001
+From: BearddOddity <beardedoddity@gmail.com>
+Date: Tue, 13 Oct 2026 17:06:12 -0500
+Subject: [PATCH 4/9] Mod API: retarget; pins module; waypoint time at pace,
+ dim behind walls, looks; trail looks and door routing; keys gated on the HUD
+
+dfo.retarget lets a module ask the game to mark another place (the compass, waypoint and trail follow it). A new pins module drops
+pins at the crosshair and cycles quest and pins. The waypoint says the time at the player's pace, dims behind a wall and has five
+looks; the trail has five looks and, where the street host hands over its doors, leads to the door nearest a mark shut in a
+building. Every module key works only while the HUD is up and without Ctrl/Alt/Meta; a test reads the game's default bindings
+and fails on a clash.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ bible/06-Systems/Mod-API.md       |  13 ++-
+ bible/09-Testing/Testing.md       |   4 +-
+ modules/README.md                 |   7 +-
+ modules/guide-trail/module.js     |  80 ++++++++++++----
+ modules/guide-trail/src/embers.js |  27 ++++--
+ modules/guide-trail/src/fx.js     |   4 +-
+ modules/guide-trail/src/route.js  |  22 +++++
+ modules/guide-trail/src/setup.js  |  52 +++++++----
+ modules/pins/module.js            |  77 ++++++++++++++++
+ modules/pins/module.json          |   9 ++
+ modules/quest-tracker/module.js   |   2 +-
+ modules/waypoint/module.js        |  67 ++++++++++++--
+ src/mods/modApi.js                |  20 +++-
+ src/mods/modBus.js                |   2 +-
+ src/scenes/hostMagic.js           |   4 +-
+ src/scenes/world.js               |   1 +
+ src/ui/enhancedHud.js             |   1 +
+ test/mods1_api.test.js            | 146 +++++++++++++++++++++++++++++-
+ 18 files changed, 467 insertions(+), 71 deletions(-)
+ create mode 100644 modules/pins/module.js
+ create mode 100644 modules/pins/module.json
+
+diff --git a/bible/06-Systems/Mod-API.md b/bible/06-Systems/Mod-API.md
+index 0099589ab3..e767aa8e9e 100644
+--- a/bible/06-Systems/Mod-API.md
++++ b/bible/06-Systems/Mod-API.md
+@@ -72,7 +72,8 @@ same baseline rule the faces keep.
+ | `dfo.on(event, fn)` | listen; answers a function that stops listening. An event the manifest does not list is **refused** with a warning, not delivered |
+ | `dfo.store.get(key, fallback)`, `.set(key, value)` | the module's own settings, apart from every other module's (`dfjs-module-<id>` in the game's own storage) |
+ | `dfo.say(text)` | a line over the game |
+-| `dfo.onKey('F7', fn)` / `'Shift+F7'` | a key, never from a text field |
++| `dfo.onKey('F7', fn)` / `'Shift+F7'` | a key, never from a text field and never with Ctrl, Alt or Meta held |
++| `dfo.retarget([x, z])` / `dfo.retarget(null)` | ask the game to mark that place on its compass instead of the tracked quest's - the HUD's own compass, and every module that follows `questMark`, see it (the last ask by an enabled module wins; a module switched off asks no more); `null` gives the compass back |
+ 
+ The handle is frozen and has no door to the net, the disk or another module. A listener that throws is isolated - the frame
+ and every other module go on - and a module that fails 25 times is switched off for the session.
+@@ -116,12 +117,20 @@ entry's `sha256`.
+ 
+ | module | listens to | does |
+ | --- | --- | --- |
+-| `waypoint` | `questMark` | a gold diamond in the view over the compass's quest mark, with the distance, an edge arrow when it is to a side (F7) |
++| `waypoint` | `questMark`, `drawFx` | a diamond over the compass's mark at its own spot on the floor, in perspective, with the distance and - walking - the time at the player's pace; dim behind a wall; an edge arrow when it is off to a side (F7; Shift+F3 cycles its look: gold, ivory, cyan, magenta, large) |
+ | `quest-tracker` | `quests`, `questMark` | a panel listing every active quest: where, time left, the latest entry (Shift+F7) |
+ | `guide-trail` | `questMark`, `drawFx` | gold embers along the way to the quest, or back the way the player came (F4): the embers are a pure function of a path and the clock; pools lie on the floor as translucent stains and sparks rise additively, so the trail reads on snow as well as in a dungeon |
+ 
++| `pins` | `questMark`, `drawFx` | F2 drops a pin where the crosshair meets the world, F3 cycles the compass quest -> pins -> quest, Shift+F2 removes the followed pin; arriving removes it; a jump of 150 m (a new place, its own frame) clears them. It asks the game to mark the pin (`retarget`), so the compass, waypoint and trail follow it with no module reading another |
++
++The guide trail plans round walls over the floor from the world probe (`route.js`); where the mark is shut in a building and the host hands over `world.doors` it leads to the door nearest the mark (the street host does; the loader's released-client route has no door list and leads to the nearest cell). Shift+F4 cycles its look.
++
+ Each is one folder and lives with or without the others; none reads another.
+ 
++### KEYS - and the game's own
++
++The game binds F5 (character sheet), F6 (inventory), F8 (screenshot), F9/F11 (quick save/load), F10 (HUD) and the letters, digits and arrows in play; in dialogs and the maps it binds F1-F8 again. The modules use F2, F3, F4, F7 (and Shift with F2, F3, F4, F7) - none a gameplay default - and each key does nothing unless the HUD has drawn in the last 400 ms, so a dialog, a menu or a map that uses the same F key is never also answered by a module. `test/mods1_api.test.js` reads the game's default bindings and fails if a module takes one, if two modules share a key, or if a key is not gated.
++
+ ## KNOWN LIMITS
+ 
+ - `drawFx` and `questMark` are announced by the world-hosted scenes (the street, a building, a dungeon entered from the world).
+diff --git a/bible/09-Testing/Testing.md b/bible/09-Testing/Testing.md
+index dcf2df9509..af234bc9b9 100644
+--- a/bible/09-Testing/Testing.md
++++ b/bible/09-Testing/Testing.md
+@@ -1,7 +1,7 @@
+ # Testing
+ 
+ Runner: `node --test` (bare - a trailing `test/` path breaks discovery on
+-Node 22). Suite: 27376 tests across 3122 files. (Declared tests - top-of-line `test(` calls, as test/manifest.test.js counts them; the runner reports a few more, from the files that declare tests in loops.)
++Node 22). Suite: 27381 tests across 3122 files. (Declared tests - top-of-line `test(` calls, as test/manifest.test.js counts them; the runner reports a few more, from the files that declare tests in loops.)
+ PROBE (no suite row - it needs `npx wrangler`): `npm run account` (tools/accountProbe.mjs) stands `server-account/` up in a REAL workerd, applies the real migrations to a real D1 through wrangler's ledger, and drives the whole account lifecycle AND (AUDIT-312 F4) a whole cloud-save round trip against workerd's own R2 - 36 checks. IT EXISTS BECAUSE THE SUITE WAS GREEN OVER A WORKER THAT COULD NOT BOOT: a module Worker reads every named export of its entrypoint as an entrypoint, `server-account/src/index.js` exported four constants, and workerd refused to start - while `test/accountworker.test.js` passed BECAUSE it imported those very names. Importability is not deployability. It also measures what the suite can only assume: Ed25519 exists in that runtime (it is not in every WebCrypto and the token design rests on it), PBKDF2 at 210,000 costs 36ms there, and a token the Worker SIGNS verifies against the key the Worker PUBLISHES, with a stranger's key and a bent byte as the negative controls. AUDIT-312 F4 ADDED ACC2's HALF, and the reason is the same one: ACC2 declared a new BINDING (`SAVES`, an R2 bucket) and seven routes, and nothing in this tree asked whether that binding is really bound - a binding that is ABSENT does not crash, it answers `no-storage`, which reaches a player as "Cloud saves are unavailable right now" with a green suite and a green deploy behind it. It drives the guest wall, a blob refused without a card, the card, the bytes back BYTE FOR BYTE as an octet-stream, the shot bounded apart from the save, another account refused a read and a delete, and the player's own delete taking the object as well as the row. AND IT WAS ONLY EVER CORRECT ONCE: `wrangler --local` REUSES its state, so run two registered a username run one had taken and logged in with a password run one's recovery check had changed - six failures about the last run rather than about the service, and a migration check reading "no migrations to apply" as "no migrations". It stands on a fresh `--persist-to` directory now, and two runs back to back are 36/36 twice. AND IT HAS BEEN MUTATED AT LAST (AUDIT-PW, tools/mutants/acctprobe.json, 4, 4 dead) - AUDIT-ACC named this tool as never-mutated beside password.js and it stayed that way for a day. The question a campaign asks of a PROBE is the inverse of the usual one: break the SERVICE, and does the probe go red? All four do, and TWO OF THEM THE SUITE CANNOT SEE AT ALL - a named value export back on the entrypoint (the original bug: workerd refuses to start over a constant while the suite stays green BECAUSE it imports those very names) and the R2 binding renamed in wrangler.toml (the suite hands the Worker its own env and never reads that file). The other two are a hash cost that leaves a Worker's CPU budget, which only a real runtime can time, and a migration that stops applying through wrangler's own ledger, which is the thing the deploy runs. `--local` is workerd, not Cloudflare: no network, no D1 limit, no cold start. Set ACCOUNT_PROBE_PORT if a previous run left an orphan. PROBE (no suite row - it needs a browser): `node tools/quickLootStatsProbe.mjs` draws the quick-loot plaque AND its stat panel through `showWorldPlaque` - the same seam the four hosts call - over the real ENHANCED_CSS in Chromium, at desktop, narrow and phone widths, walking the highlight down a pile of four, and photographs each. It exists because a player asked for the stats "next to the quickloot window" and NEXT TO is a thing about pixels: the suite can say the side was COMPUTED right and never that the panel reads as one surface with the list beside it. CHARGEN-REFLEX's lesson is built in - the markup is the real `paint`'s, not the probe's, because a harness that writes its own markup measures its own artefact. IT PAID FOR ITSELF ON THE FIRST RUN, TWICE, on faults no pin in the suite could have failed on: a Condition reads "Slightly Used (75%)" and the panel is deliberately narrow, so that row WRAPS - and the value was only pushed right by an auto margin, so its second line sat hard against the LABEL and read as a different row; and the survival SENTENCE rows ("Nourishes for 180 minutes") inherited the fix's right alignment and read as a value with no name. The rows were right, the side was right, the markup was right, and the box looked wrong. 12 shots. PROBE (no suite row - it runs 600 frames of the real rig): `node tools/peerBodiesProbe.mjs` drives the REAL PeerBodies over the REAL `createFpArm` rig on the arm fixtures with a counting renderer - 1, 4 and 8 peers walking out from 4 m to 50 m, a pose every sixth frame - and reports poses+uploads and sprite renders a body a frame. It exists because PERF-ON2 measured the online frame and never the peer bodies, which are its one real cost; it read 1.00 poses a body a frame at every count before PEER-CADENCE and 0.74 / 0.52 / 0.43 after, and still 1.00 sprite renders, which is the open item. The fixture rig is four small pieces, so its milliseconds are not a retail body's; the counts are exact. PROBE (no suite row - it needs a browser): `node tools/mailProbe.mjs` mounts the REAL friends panel over the real enhanced sheet in Chromium with a REAL MailBox whose fetch answers the service's shapes. It runs at 1440x900, 480x800 and a 390x700 phone on the touch skin, with the widest content the letter's law allows: a full box of fifty, a sender at the handle's bound with every glyph, a subject at its bound, and a letter of one 200-letter word and forty lines. It reads back the panel on the screen; three tabs and Close in one bar; nothing in the box, the letter or the form spilling or scrolling sideways; Reply and Delete reached at a letter's foot; the letter's field tall enough; a finger's 44px and a phone's 16px fields; a refusal said in the form with the draft kept; and a friend's row of Invite, Letter and Remove beside the widest name. IT FOUND ONE DEFECT: on the phone the three acts squeezed a guest friend's name to one letter a line, and the acts are one group that wraps below the name now. 36 checks, 12 shots. PROBE (no suite row - it needs a browser): `node tools/journalProbe.mjs` stands JOURNAL1's real surfaces over the real enhanced sheet in Chromium at 1440x900, 480x800 and a 390x700 phone on the touch skin, at the widest content the law allows: the chronicle's Share strip under a note with six readers at the name's bound and the letter, and what a press said, all inside the note's card with nothing scrolling sideways; the reader's window at the widest page (a head at PAGE_HEAD_MAX, PAGE_LINES_MAX lines, one a single unbroken word at PAGE_LINE_MAX) inside the screen, its page scrolling inside the card with Keep and Put it away on screen at its foot, and kept; the Letters tab's Keep beside Reply and Delete, and kept; and the F-menu's "Read their page" after Inspect on a player at the name's bound. A finger's 44px on the phone. IT FOUND ONE DEFECT: a note's line of one long word ran out of its card and the Notes section scrolled sideways (672px in 624 at a desktop, 652 in 315 on a phone) - the chronicle's text breaks a word too long for its column now. 35 checks, 15 shots. PROBE (no suite row - it needs a browser): `node tools/lootStackProbe.mjs` draws the REAL plaque through the real seam the four hosts call (ui/worldPlaque.js worldHoverFrame) over the real sheet in Chromium, with three bodies in one pile under the reticle, at 1440 and 480: the pile's mark ONE line inside the plaque beside the body's name and list, a turn landing the next frame with the next body's name and list and DFU's mid-screen line, a long body name, the back of the pile turning to its front. IT FOUND TWO DEFECTS IN THE PLAQUE IT DRAWS ON, both older than the pile, which only a picture could: the divider was the TITLE's foot, so every sub-line of a plaque with a list drew under it as the list's first row (a locked chest's lock level always had); and the list's height cap clipped ACROSS as well as down, cutting quick loot's highlight band off at the list's edges and the lit name's first letter with it - on the narrow sheet the band's fixed margin also ran 2px into the border, and its left padding stood the lit name 2px left of the rest. So it measures the lit row too (band edge to edge, name whole and unmoved) and the cap still clipping a six-row pile downward at a 360px window. 18 checks, 3 shots. PROBE (no suite row - it needs a browser): `node tools/chatChanProbe.mjs` mounts the REAL chat panel over the real sheet in Chromium, on the desktop skin and the touch skin, at the sheet's 440px box and the narrowest a phone gives (352px), and reads back what a fake cannot: World, Region, Party, Local and the Social button in ONE bar inside the box with no tab's name cut; every tab's hover; the field's placeholder following the tab and the Region tab's by the region's name; an aside in `(( ))` drawn leaning and dimmed beside a line in character; the peek's Party mark in the party's green and a notice with none; a roll in its own colour and the dice's words beside a typed line that only reads like one (DICE1); `/help`'s 'read' answer clearing the field with the chat left open; and EMOTE1's - the form row at every width with the field never under the narrowest the chat had before the emoji button (the touch skin's 115px at a 320px phone), the picker's round trip, the edge where the button gives way (the smallest box a drag makes keeps it, a pixel under does not), an action's face, and a joined family drawn as ONE glyph after the wire's sanitizer. IT FOUND TWO DEFECTS: four tabs and the Social button asked 373px of a 350px bar, pushing Social past the box's edge; and with three tabs unread they asked 468px of the sheet's own 440 - where the first fix (tabs shrinking to an ellipsis) MEASURED as fitting and a screenshot showed "PARTY..." beside a clipped smear of badge. Its judges now read what the eye does: a label whole inside its button (the text's own box, not scrollWidth, which clip does not move), every unread dot whole, Social always in the box. The tabs stand in a strip of their own that never squeezes a tab (a phone's scrolls sideways), an unread count is a dot with the number as the tab's spoken name, and a box under 400px (a container query - CHAT-SIZE lets the box be narrow on a wide screen) closes the labels up. At 440, 352 and a 320px phone's 292, on both skins, bare and with three tabs unread - 75 checks. EMOTE1's own run found two more: the button took a touch field to 67px at 320 (the touch skin has no button now - a phone keyboard has an emoji key) and a desktop one to 93px in a box the screen forced below the drag's minimum; and the first cut of the rule that yields it there asked the drag's width of a container query, which measures inside the box's border, and hid the button at the smallest box a drag makes. PROBE (no suite row - it needs a browser): `node tools/chatSizeProbe.mjs` drags the REAL grip with the real mouse over the chat's and the friends panel's real sheets in Chromium, at 1440x900 and 900x900, and reads the layout back - the box's width, the list's height, a line's and a roster row's computed size, Send's (a thumb's, unscaled), the grip against the Close button, the friends panel's rectangle against the box's (beside at 1440, under at 900, over it at neither), after a reload, and after a double click. IT FOUND TWO DEFECTS ON ITS FIRST RUN that the fake could not: the grip stood at the end of the form's row, which is the conversation column's corner and not the box's (the roster stands beyond it), and the list grew 132px for a 120px drag (its clientHeight carries its own padding, which the height the sheet sets does not). 24 checks. PROBE (no suite row - it needs a browser): `node tools/chatScrollProbe.mjs` drives the REAL chat panel over the real sheet in Chromium and reads the list's own scrollTop against its range after each thing a player does - the first open, an open after lines came in while closed, an open after reading history and closing, a line under a reader at the bottom, three under a reader who scrolled up (not yanked, the bar says 3), the bar's click - plain and with every line wearing a badge that wraps it. It exists because Starempire42's report is about a real scroll box, which node cannot lay out; Chromium keeps a hidden scroller's offset, so the engines that drop it are test/chatscroll.test.js's half. 12 checks. PROBE (no suite row - it needs a browser): `node tools/chatFitProbe.mjs` stands the REAL chat panel (createChatPanel over a real ChatLog, CHAT_CSS over the enhanced sheet) in Chromium at a desktop and a phone-landscape viewport with twenty-four long names wearing titles and glyphs, and MEASURES: the box is 299 px with three names and 299 px with twenty-four, the column exactly as tall as the conversation, 437 px of list in 235, every row one line (16-17 px against a 16.2 px line), eight names cut with an ellipsis, and the chat lines wearing their authors' badges. It exists because Mac's report was a screenshot and every one of its three sentences is about pixels: a pin can say a rule reads `nowrap` and a column is `absolute`, and only a layout engine can say the box stopped growing. 12 checks, 2 shots. PROBE (no suite row - it needs a browser): `node tools/noticeFitProbe.mjs` draws the enhanced NOTICE PANELS through `drawEnhancedNotice` - the entry every box and every toast goes through - over the real ENHANCED_CSS in Chromium, at desktop, narrow and phone widths, and MEASURES each one's border-box width: a one-line notice, the status readout, a long quest box and a toast come back 210 / 450 / 520 / 339 px at 1280 wide, four widths where NOTICE-FIT found one. It exists because kurkku asked for "the sizing of the boxes to properly adjust for the text" and width is a thing about pixels - a pin can say the rule reads `max-width` and still not say that "You are healthy." hugs its line while a four-paragraph box still wraps at the cap. IT LIED ON ITS FIRST RUN and the picture is how it was caught: the panels photographed 46px off the right edge with a live transform, because NOTICE_WATCHDOG_MS had correctly swept a panel nobody was drawing - a harness that does not do what the host does measures its own artefact, so it PUMPS the draw on rAF the way a host does. 12 measurements, 3 shots. PROBE (no suite row - it needs a browser): `npm run blood` (tools/bloodProbe.mjs) drives `createHitEffects` and `drawBillboards` over a texture whose colour is known, in a real WebGL2 context, and reads the pixel back at five lighting states. MAC-BUG W6: and then installs the Enhanced Lighting lane and reads a sprite and a mark side by side at four more - the rows where the mark came back at 25 against 69 and 2 against 17 while every classic row was green. 26 checks (AUDIT BLOOD3 F10: and the MENISCUS is drawn now - the same mark against a uniform-thickness one under a grazing sun, the difference banded by radius, which is the one law this arc took to main with no picture; the film's own rows, banded by RADIUS inside the mark's silhouette rather than by brightness, which was sorting the alpha-faded rim into the thin bucket and measuring the blend). It exists because MAC-BUG W4 ("Also blood is black") could not be settled by reading: it clears the pool, the texture KEY (`380_0#0` is minted in scenes/dataPipeline.js and asked for in render/renderer.js, and nothing had ever checked the two agree), the shader's emission arm, and anything specific to blood - a plain sprite in the same dungeon light comes back the same 20,2,2. 9 checks. PROBE (no suite row - it needs a browser): `node tools/setUiProbe.mjs` draws the REAL pack (`createInventoryWindow`, the enhanced skin) and the REAL HUD with a kit worn through the game's own equip - six of Dagon's Brand and its sword, two of Ruhn's Regalia, a Mora helm and a Nocturnal cuirass carried - online at Renown 12, at a desktop, a laptop and a phone: the doll's strip (two lines, "7/9" and "2/9", their pips and stages, inside the column and clear of the shelf), every set piece's frame marked and its corner rune in its set's colour, a worn Dagon piece's card (seven places lit, three tiers awake, the stage line left-aligned at its own size), a Mora helm's ("0/9", "Wear two pieces to wake it", the sigil block's "A set's sigil"), the strip's press, the offline card asleep and dimmed, and the four powers driven through their real doors to their HUD chips in their sets' colours (a recovery dashed). 156 checks, every state photographed. PROBE (no suite row - it needs a browser): `node tools/renownBarProbe.mjs` draws the REAL HUD (`drawEnhancedHud` over the real sheets, the enhanced skin) with a Renown handed through `ui/hudRenown.js`'s own seam, over the real web faces (`NOFONTS=1` for the fallback, offline), at 1440x900, 1024x700, a 390x844 phone and an 844x390 one, for a level part-way with a ghost, a level's start, a level's last XP, the cap and a level with no total, and reads: no words in the row, the bar's middle within 1px of the vitals', RENOWN4's thin 8px bar, the box clear of the bar and the row on the screen. It exists because RENOWN-BAR is a thing about pixels - where the bar's middle is. Before the change it read the bar 42px left of the vitals' middle (57px at the widest numbers) with the numbers beside it; after, 0.0px everywhere. 128 checks, 20 shots. PROBE (no suite row - it needs a browser): `node tools/languageProbe.mjs` (L10N1b) boots the game with no ARENA2 in Chromium as a French, an English and a Japanese reader and reads: the first-run offer asked in French with its machine-made note, the account window waiting until it is answered, Yes switching the rail to French at once and No keeping English, each answer remembered across a reload, only the chosen language's file fetched (none for an English reader), the Settings > Interface row holding every language the build does and switching French to German to English at once, `?lang=ja` for one visit, the pseudo-locale, and no page errors. 36 checks. PROBE (no suite row - it needs a browser): `node tools/classicTextProbe.mjs` (L10N2) draws a line of French, German, Polish, Vietnamese, Russian, Greek, Japanese, Simplified and Traditional Chinese and Korean through `ui/text.js` drawText on a REAL WebGL renderer, over a stand-in FONT0003 with blank glyphs and no ARENA2, and reads the pixels back: each language a face over its script's fonts (Han by region), every character a glyph grown on demand, ink where the line is and ending where its measured advance does, a full-width character one GlyphHeight wide, and English - left to Daggerfall's own glyphs - drawing no face. 45 checks, one picture (`PROBE_SHOTS`). PROBE (no suite row - it needs a browser and a DFU translation pack on disk, which is never committed): `PACK_DIR=... node tools/translationPackProbe.mjs` (L10N3b) installs the pack through Settings > Interface's Translation pack row in Chromium - its folder, then its .zip - and reads the game's tables back: its Internal_Strings and TEXT.RSC rows live, the language told its pack, its FONT0003 the face drawn, all of it still there after a reload, and gone after Remove. 13 checks with the French pack (354 files; 352 from its zip). PROBE (no suite row - it needs a browser): `node tools/lootBannerProbe.mjs` draws the REAL loot banners (`drawLootBanners` handed a player entity, as drawHud hands it) over the real enhanced HUD and a real notice toast in Chromium at 1440x900, 1024x700 and a 390x844 phone, the pieces minted by the game's own producers (a Rare, an Exalted Legendary, a Legendary card; an Aetheric, an Artifact and the Hourlock; a burst of six), and reads: every banner at the right edge and on the screen, none over the notices, none scrolling sideways, every name in its tier's colour, the top tiers big and taller than the rest, the best of a burst standing first, never more than three. 183 checks, 9 shots. PROBE (no suite row - it needs a browser): `node tools/cardPanelsProbe.mjs` (CARDS-PLUS, `11-Multiplayer/Tavern-Cards.md` section 38) mounts the REAL Hold'em and Iliac Hand panels over the card lab's table through their own painters and models - Iliac Hand's setup (a friendly game), a turn with a card staged and one picked, its end; Hold'em's buy-in at a gold table, a hand at the flop with four chairs, a full table's river and its showdown - on Enhanced Plus, the classic skin and the DFO Grimoire dress, at 1280x760, a 1000x560 window, 390x844 and 360x740 phones and an 844x390 phone under a finger (AUDIT CARDS-PLUS C5), with the launcher's own Pixelify Sans laid (the probe's browser has no route to the game's font request), and reads: the panel's words, title and presses in the game's face (the dress's under the dress) and no face of the panel's own - no serif, and under the dress exactly the dress's own stack (AUDIT CARDS-PLUS C5: the base skipped the dress, whose stack ends in Georgia); the kit's carved frame; the panel on the screen and nothing wider than it, no lane past its holding; no lane, little card or note wearing the enhanced sheet's bare `.row`, `.card` or `.note`; the hand painted at its 80px tile face; the log at its newest standing on a whole line; the fold on the screen to press, putting the table's words away and back with the line and the presses still drawn; and (AUDIT CARDS-PLUS C5, which found 100 of its first 314 checks running over nothing) every part a check reads counted there, the pot inside its board, each state either panel marks drawn apart from its rest in every look, no card over another. IT FOUND TWO DEFECTS BEFORE IT WAS WRITTEN DOWN, as the scratch harness it grew from: the log's top line half cut when scrolled (a scrolling padding, and a line holding a 5 grown a pixel by the five's own face - the lines are fixed boxes now, the gap their first's margin), and a regular's tile and a seat's name cut to an ellipsis (they wrap). 1,690 checks, 105 shots.
+ PROBE (no suite row - it needs `npx wrangler`): `npm run account` (tools/accountProbe.mjs) stands `server-account/` up in a REAL workerd, applies the real migrations to a real D1 through wrangler's ledger, and drives the whole account lifecycle AND (AUDIT-312 F4) a whole cloud-save round trip against workerd's own R2 - 36 checks. IT EXISTS BECAUSE THE SUITE WAS GREEN OVER A WORKER THAT COULD NOT BOOT: a module Worker reads every named export of its entrypoint as an entrypoint, `server-account/src/index.js` exported four constants, and workerd refused to start - while `test/accountworker.test.js` passed BECAUSE it imported those very names. Importability is not deployability. It also measures what the suite can only assume: Ed25519 exists in that runtime (it is not in every WebCrypto and the token design rests on it), PBKDF2 at 210,000 costs 36ms there, and a token the Worker SIGNS verifies against the key the Worker PUBLISHES, with a stranger's key and a bent byte as the negative controls. AUDIT-312 F4 ADDED ACC2's HALF, and the reason is the same one: ACC2 declared a new BINDING (`SAVES`, an R2 bucket) and seven routes, and nothing in this tree asked whether that binding is really bound - a binding that is ABSENT does not crash, it answers `no-storage`, which reaches a player as "Cloud saves are unavailable right now" with a green suite and a green deploy behind it. It drives the guest wall, a blob refused without a card, the card, the bytes back BYTE FOR BYTE as an octet-stream, the shot bounded apart from the save, another account refused a read and a delete, and the player's own delete taking the object as well as the row. AND IT WAS ONLY EVER CORRECT ONCE: `wrangler --local` REUSES its state, so run two registered a username run one had taken and logged in with a password run one's recovery check had changed - six failures about the last run rather than about the service, and a migration check reading "no migrations to apply" as "no migrations". It stands on a fresh `--persist-to` directory now, and two runs back to back are 36/36 twice. AND IT HAS BEEN MUTATED AT LAST (AUDIT-PW, tools/mutants/acctprobe.json, 4, 4 dead) - AUDIT-ACC named this tool as never-mutated beside password.js and it stayed that way for a day. The question a campaign asks of a PROBE is the inverse of the usual one: break the SERVICE, and does the probe go red? All four do, and TWO OF THEM THE SUITE CANNOT SEE AT ALL - a named value export back on the entrypoint (the original bug: workerd refuses to start over a constant while the suite stays green BECAUSE it imports those very names) and the R2 binding renamed in wrangler.toml (the suite hands the Worker its own env and never reads that file). The other two are a hash cost that leaves a Worker's CPU budget, which only a real runtime can time, and a migration that stops applying through wrangler's own ledger, which is the thing the deploy runs. `--local` is workerd, not Cloudflare: no network, no D1 limit, no cold start. Set ACCOUNT_PROBE_PORT if a previous run left an orphan. PROBE (no suite row - it needs a browser): `node tools/quickLootStatsProbe.mjs` draws the quick-loot plaque AND its stat panel through `showWorldPlaque` - the same seam the four hosts call - over the real ENHANCED_CSS in Chromium, at desktop, narrow and phone widths, walking the highlight down a pile of four, and photographs each. It exists because a player asked for the stats "next to the quickloot window" and NEXT TO is a thing about pixels: the suite can say the side was COMPUTED right and never that the panel reads as one surface with the list beside it. CHARGEN-REFLEX's lesson is built in - the markup is the real `paint`'s, not the probe's, because a harness that writes its own markup measures its own artefact. IT PAID FOR ITSELF ON THE FIRST RUN, TWICE, on faults no pin in the suite could have failed on: a Condition reads "Slightly Used (75%)" and the panel is deliberately narrow, so that row WRAPS - and the value was only pushed right by an auto margin, so its second line sat hard against the LABEL and read as a different row; and the survival SENTENCE rows ("Nourishes for 180 minutes") inherited the fix's right alignment and read as a value with no name. The rows were right, the side was right, the markup was right, and the box looked wrong. 12 shots. PROBE (no suite row - it runs 600 frames of the real rig): `node tools/peerBodiesProbe.mjs` drives the REAL PeerBodies over the REAL `createFpArm` rig on the arm fixtures with a counting renderer - 1, 4 and 8 peers walking out from 4 m to 50 m, a pose every sixth frame - and reports poses+uploads and sprite renders a body a frame. It exists because PERF-ON2 measured the online frame and never the peer bodies, which are its one real cost; it read 1.00 poses a body a frame at every count before PEER-CADENCE and 0.74 / 0.52 / 0.43 after, and still 1.00 sprite renders, which is the open item. The fixture rig is four small pieces, so its milliseconds are not a retail body's; the counts are exact. PROBE (no suite row - it needs a browser): `node tools/mailProbe.mjs` mounts the REAL friends panel over the real enhanced sheet in Chromium with a REAL MailBox whose fetch answers the service's shapes. It runs at 1440x900, 480x800 and a 390x700 phone on the touch skin, with the widest content the letter's law allows: a full box of fifty, a sender at the handle's bound with every glyph, a subject at its bound, and a letter of one 200-letter word and forty lines. It reads back the panel on the screen; three tabs and Close in one bar; nothing in the box, the letter or the form spilling or scrolling sideways; Reply and Delete reached at a letter's foot; the letter's field tall enough; a finger's 44px and a phone's 16px fields; a refusal said in the form with the draft kept; and a friend's row of Invite, Letter and Remove beside the widest name. IT FOUND ONE DEFECT: on the phone the three acts squeezed a guest friend's name to one letter a line, and the acts are one group that wraps below the name now. 36 checks, 12 shots. PROBE (no suite row - it needs a browser): `node tools/journalProbe.mjs` stands JOURNAL1's real surfaces over the real enhanced sheet in Chromium at 1440x900, 480x800 and a 390x700 phone on the touch skin, at the widest content the law allows: the chronicle's Share strip under a note with six readers at the name's bound and the letter, and what a press said, all inside the note's card with nothing scrolling sideways; the reader's window at the widest page (a head at PAGE_HEAD_MAX, PAGE_LINES_MAX lines, one a single unbroken word at PAGE_LINE_MAX) inside the screen, its page scrolling inside the card with Keep and Put it away on screen at its foot, and kept; the Letters tab's Keep beside Reply and Delete, and kept; and the F-menu's "Read their page" after Inspect on a player at the name's bound. A finger's 44px on the phone. IT FOUND ONE DEFECT: a note's line of one long word ran out of its card and the Notes section scrolled sideways (672px in 624 at a desktop, 652 in 315 on a phone) - the chronicle's text breaks a word too long for its column now. 35 checks, 15 shots. PROBE (no suite row - it needs a browser): `node tools/lootStackProbe.mjs` draws the REAL plaque through the real seam the four hosts call (ui/worldPlaque.js worldHoverFrame) over the real sheet in Chromium, with three bodies in one pile under the reticle, at 1440 and 480: the pile's mark ONE line inside the plaque beside the body's name and list, a turn landing the next frame with the next body's name and list and DFU's mid-screen line, a long body name, the back of the pile turning to its front. IT FOUND TWO DEFECTS IN THE PLAQUE IT DRAWS ON, both older than the pile, which only a picture could: the divider was the TITLE's foot, so every sub-line of a plaque with a list drew under it as the list's first row (a locked chest's lock level always had); and the list's height cap clipped ACROSS as well as down, cutting quick loot's highlight band off at the list's edges and the lit name's first letter with it - on the narrow sheet the band's fixed margin also ran 2px into the border, and its left padding stood the lit name 2px left of the rest. So it measures the lit row too (band edge to edge, name whole and unmoved) and the cap still clipping a six-row pile downward at a 360px window. 18 checks, 3 shots. PROBE (no suite row - it needs a browser): `node tools/chatChanProbe.mjs` mounts the REAL chat panel over the real sheet in Chromium, on the desktop skin and the touch skin, at the sheet's 440px box and the narrowest a phone gives (352px), and reads back what a fake cannot: World, Region, Party, Local and the Social button in ONE bar inside the box with no tab's name cut; every tab's hover; the field's placeholder following the tab and the Region tab's by the region's name; an aside in `(( ))` drawn leaning and dimmed beside a line in character; the peek's Party mark in the party's green and a notice with none; a roll in its own colour and the dice's words beside a typed line that only reads like one (DICE1); `/help`'s 'read' answer clearing the field with the chat left open; and EMOTE1's - the form row at every width with the field never under the narrowest the chat had before the emoji button (the touch skin's 115px at a 320px phone), the picker's round trip, the edge where the button gives way (the smallest box a drag makes keeps it, a pixel under does not), an action's face, and a joined family drawn as ONE glyph after the wire's sanitizer. IT FOUND TWO DEFECTS: four tabs and the Social button asked 373px of a 350px bar, pushing Social past the box's edge; and with three tabs unread they asked 468px of the sheet's own 440 - where the first fix (tabs shrinking to an ellipsis) MEASURED as fitting and a screenshot showed "PARTY..." beside a clipped smear of badge. Its judges now read what the eye does: a label whole inside its button (the text's own box, not scrollWidth, which clip does not move), every unread dot whole, Social always in the box. The tabs stand in a strip of their own that never squeezes a tab (a phone's scrolls sideways), an unread count is a dot with the number as the tab's spoken name, and a box under 400px (a container query - CHAT-SIZE lets the box be narrow on a wide screen) closes the labels up. At 440, 352 and a 320px phone's 292, on both skins, bare and with three tabs unread - 75 checks. EMOTE1's own run found two more: the button took a touch field to 67px at 320 (the touch skin has no button now - a phone keyboard has an emoji key) and a desktop one to 93px in a box the screen forced below the drag's minimum; and the first cut of the rule that yields it there asked the drag's width of a container query, which measures inside the box's border, and hid the button at the smallest box a drag makes. PROBE (no suite row - it needs a browser): `node tools/chatSizeProbe.mjs` drags the REAL grip with the real mouse over the chat's and the friends panel's real sheets in Chromium, at 1440x900 and 900x900, and reads the layout back - the box's width, the list's height, a line's and a roster row's computed size, Send's (a thumb's, unscaled), the grip against the Close button, the friends panel's rectangle against the box's (beside at 1440, under at 900, over it at neither), after a reload, and after a double click. IT FOUND TWO DEFECTS ON ITS FIRST RUN that the fake could not: the grip stood at the end of the form's row, which is the conversation column's corner and not the box's (the roster stands beyond it), and the list grew 132px for a 120px drag (its clientHeight carries its own padding, which the height the sheet sets does not). 24 checks. PROBE (no suite row - it needs a browser): `node tools/chatScrollProbe.mjs` drives the REAL chat panel over the real sheet in Chromium and reads the list's own scrollTop against its range after each thing a player does - the first open, an open after lines came in while closed, an open after reading history and closing, a line under a reader at the bottom, three under a reader who scrolled up (not yanked, the bar says 3), the bar's click - plain and with every line wearing a badge that wraps it. It exists because Starempire42's report is about a real scroll box, which node cannot lay out; Chromium keeps a hidden scroller's offset, so the engines that drop it are test/chatscroll.test.js's half. 12 checks. PROBE (no suite row - it needs a browser): `node tools/chatFitProbe.mjs` stands the REAL chat panel (createChatPanel over a real ChatLog, CHAT_CSS over the enhanced sheet) in Chromium at a desktop and a phone-landscape viewport with twenty-four long names wearing titles and glyphs, and MEASURES: the box is 299 px with three names and 299 px with twenty-four, the column exactly as tall as the conversation, 437 px of list in 235, every row one line (16-17 px against a 16.2 px line), eight names cut with an ellipsis, and the chat lines wearing their authors' badges. It exists because Mac's report was a screenshot and every one of its three sentences is about pixels: a pin can say a rule reads `nowrap` and a column is `absolute`, and only a layout engine can say the box stopped growing. 12 checks, 2 shots. PROBE (no suite row - it needs a browser): `node tools/noticeFitProbe.mjs` draws the enhanced NOTICE PANELS through `drawEnhancedNotice` - the entry every box and every toast goes through - over the real ENHANCED_CSS in Chromium, at desktop, narrow and phone widths, and MEASURES each one's border-box width: a one-line notice, the status readout, a long quest box and a toast come back 210 / 450 / 520 / 339 px at 1280 wide, four widths where NOTICE-FIT found one. It exists because kurkku asked for "the sizing of the boxes to properly adjust for the text" and width is a thing about pixels - a pin can say the rule reads `max-width` and still not say that "You are healthy." hugs its line while a four-paragraph box still wraps at the cap. IT LIED ON ITS FIRST RUN and the picture is how it was caught: the panels photographed 46px off the right edge with a live transform, because NOTICE_WATCHDOG_MS had correctly swept a panel nobody was drawing - a harness that does not do what the host does measures its own artefact, so it PUMPS the draw on rAF the way a host does. 12 measurements, 3 shots. PROBE (no suite row - it needs a browser): `npm run blood` (tools/bloodProbe.mjs) drives `createHitEffects` and `drawBillboards` over a texture whose colour is known, in a real WebGL2 context, and reads the pixel back at five lighting states. MAC-BUG W6: and then installs the Enhanced Lighting lane and reads a sprite and a mark side by side at four more - the rows where the mark came back at 25 against 69 and 2 against 17 while every classic row was green. 26 checks (AUDIT BLOOD3 F10: and the MENISCUS is drawn now - the same mark against a uniform-thickness one under a grazing sun, the difference banded by radius, which is the one law this arc took to main with no picture; the film's own rows, banded by RADIUS inside the mark's silhouette rather than by brightness, which was sorting the alpha-faded rim into the thin bucket and measuring the blend). It exists because MAC-BUG W4 ("Also blood is black") could not be settled by reading: it clears the pool, the texture KEY (`380_0#0` is minted in scenes/dataPipeline.js and asked for in render/renderer.js, and nothing had ever checked the two agree), the shader's emission arm, and anything specific to blood - a plain sprite in the same dungeon light comes back the same 20,2,2. 9 checks. PROBE (no suite row - it needs a browser): `node tools/setUiProbe.mjs` draws the REAL pack (`createInventoryWindow`, the enhanced skin) and the REAL HUD with a kit worn through the game's own equip - six of Dagon's Brand and its sword, two of Ruhn's Regalia, a Mora helm and a Nocturnal cuirass carried - online at Renown 12, at a desktop, a laptop and a phone: the doll's strip (two lines, "7/9" and "2/9", their pips and stages, inside the column and clear of the shelf), every set piece's frame marked and its corner rune in its set's colour, a worn Dagon piece's card (seven places lit, three tiers awake, the stage line left-aligned at its own size), a Mora helm's ("0/9", "Wear two pieces to wake it", the sigil block's "A set's sigil"), the strip's press, the offline card asleep and dimmed, and the four powers driven through their real doors to their HUD chips in their sets' colours (a recovery dashed). 156 checks, every state photographed. PROBE (no suite row - it needs a browser): `node tools/renownBarProbe.mjs` draws the REAL HUD (`drawEnhancedHud` over the real sheets, the enhanced skin) with a Renown handed through `ui/hudRenown.js`'s own seam, over the real web faces (`NOFONTS=1` for the fallback, offline), at 1440x900, 1024x700, a 390x844 phone and an 844x390 one, for a level part-way with a ghost, a level's start, a level's last XP, the cap and a level with no total, and reads: no words in the row, the bar's middle within 1px of the vitals', RENOWN4's thin 8px bar, the box clear of the bar and the row on the screen. It exists because RENOWN-BAR is a thing about pixels - where the bar's middle is. Before the change it read the bar 42px left of the vitals' middle (57px at the widest numbers) with the numbers beside it; after, 0.0px everywhere. 128 checks, 20 shots. PROBE (no suite row - it needs a browser): `node tools/languageProbe.mjs` (L10N1b) boots the game with no ARENA2 in Chromium as a French, an English and a Japanese reader and reads: the first-run offer asked in French with its machine-made note, the account window waiting until it is answered, Yes switching the rail to French at once and No keeping English, each answer remembered across a reload, only the chosen language's file fetched (none for an English reader), the Settings > Interface row holding every language the build does and switching French to German to English at once, `?lang=ja` for one visit, the pseudo-locale, and no page errors. 36 checks. PROBE (no suite row - it needs a browser): `node tools/classicTextProbe.mjs` (L10N2) draws a line of French, German, Polish, Vietnamese, Russian, Greek, Japanese, Simplified and Traditional Chinese and Korean through `ui/text.js` drawText on a REAL WebGL renderer, over a stand-in FONT0003 with blank glyphs and no ARENA2, and reads the pixels back: each language a face over its script's fonts (Han by region), every character a glyph grown on demand, ink where the line is and ending where its measured advance does, a full-width character one GlyphHeight wide, and English - left to Daggerfall's own glyphs - drawing no face. 45 checks, one picture (`PROBE_SHOTS`). PROBE (no suite row - it needs a browser and a DFU translation pack on disk, which is never committed): `PACK_DIR=... node tools/translationPackProbe.mjs` (L10N3b) installs the pack through Settings > Interface's Translation pack row in Chromium - its folder, then its .zip - and reads the game's tables back: its Internal_Strings and TEXT.RSC rows live, the language told its pack, its FONT0003 the face drawn, all of it still there after a reload, and gone after Remove. 13 checks with the French pack (354 files; 352 from its zip). PROBE (no suite row - it needs a browser): `node tools/lootBannerProbe.mjs` draws the REAL loot banners (`drawLootBanners` handed a player entity, as drawHud hands it) over the real enhanced HUD and a real notice toast in Chromium at 1440x900, 1024x700 and a 390x844 phone, the pieces minted by the game's own producers (a Rare, an Exalted Legendary, a Legendary card; an Aetheric, an Artifact and the Hourlock; a burst of six), and reads: every banner at the right edge and on the screen, none over the notices, none scrolling sideways, every name in its tier's colour, the top tiers big and taller than the rest, the best of a burst standing first, never more than three. 183 checks, 9 shots.
+ 
+@@ -1398,7 +1398,7 @@ commit as any test change.
+ | travelinn.test.js | 3 | TRAVEL-INN - WHAT THE INNS/CAMP OUT TOGGLE ACTUALLY DOES, MEASURED ON BOTH SIDES (2026-09-22, DragynDance: "when you use instant travel the game ignores the option to camp or rest at an inn"; Mac: "there's a toggle to rest at inns and stuff during travel. Why doesn't it work?"). IT WORKS OFFLINE AND IS INERT ONLINE, and neither half was written anywhere an execution could check. DRIVEN OUT OF THE REAL POPUP rather than argued from source, because the chain is four modules long - refresh -> travel.js's per-pixel charge -> the trip cost -> the host's arrival minute - and reading any one proves nothing about the other three. OFFLINE the toggle is fully live: 2080 minutes and 10 gold at an inn against 2420 and free camping out, the classic `(300 * thisMove) >> 8` charge for not paying for a bed. ONLINE BOTH CONSEQUENCES COLLAPSE TO ZERO: WORLD5 makes the clock the world's so the trip takes no world time (world.js's arrival is `sharedClockOn() ? worldMinutes() : worldMinutes() + computed.minutes`) and OL2 pays no night because there are no nights - 0 days and 0 gold whichever way it is set, so on the INSTANT path the choice really is ignored, exactly as reported. The difference between that and the silent no-ops fixed beside it is that the player is TOLD: ONLINE_TRAVEL_LINE is drawn in both skins. AND Offline the toggle still decides whether the trip is WALKED or instant (isPlayerControlledTravel reads it); online (TRAVEL-ONLINE, 2026-10-03) the room holds the Inns dial, so a trip over land is walked by inns and by camp alike, which the row pins too. The pin says what is LIVE as well as what is not, so a later slice that makes an online trip spend time moves the online rows while the offline rows hold - the signal to come back and decide what an inn means when the nights belong to everyone. 6 mutants, 6 dead. LIVED1 (2026-09-29): online the trip's nights pass on the traveller's own clock, so the inns are slept as they are paid and the line says whose days they are. |
+ | campground.test.js | 6 | CAMP-GROUND + NOTICE-SPAM (2026-09-22, Mac: "Did you tackle camping not working in the world because of flat tarren? And the enhanced notifcation spam?"). THE CAMP PROBE ASKED THE WRONG DOOR, and this is why camping was IMPOSSIBLE rather than merely mute (CAMP-SILENT was the other half). `collider.raycast` walks the TRIANGLE BUCKETS alone; outside, the ground is not a mesh - it is `heightAt`, the terrain sampler applied to the capsule and nowhere else - so a ray cast straight down from a player standing in open country hits NOTHING, campSpot answered a null ground, and campDecision refused with "There is no level ground here" on the flattest meadow in the Iliac Bay, everywhere outdoors, for every kit. THE DOOR THAT FIXES IT IS TWO DAYS OLD AND WAS BUILT FOR THE SAME MISTAKE: `surfaceHit` (MAC-BUG W5, Mac: "blood doesn't work outside"), whose own note names this caller without knowing it - "a caller that reads 'nothing' as 'no surface' is right indoors and silently wrong in the whole outdoors". Blood was moved onto it; camping was not. It answers whichever is NEARER, so a camp under a walkway still finds the walkway, and an older collider keeps the bucket probe rather than falling to null. A sweep of the other downward probes found no third victim (enemyMotor already pairs its ray with heightAt; the interior ones are meshes). ALSO NOTICE-SPAM: a toast system that stacks one line ten times is wrong whatever posted it - the classic column SCROLLS so a repeat costs a row and passes, but the enhanced skin draws a PLATE per row (ENH-NOTICE3), so ten copies of "You are freezing" are ten plates and nothing else can be read. An identical line already at the BACK of the queue now refreshes that row's dwell instead of adding a second, keeping its `id` so the plate is refreshed rather than flickering out and back. Deliberately the back ONLY: "You are hit" twice with something between them is two blows and both belong on screen. The producers are unchanged - DEATHLOOP2 closed the loop that was making them - this closes the ring that was willing to draw them. 7 mutants, 7 dead. |
+ | menu_pointer_relock.test.js | 3 | MENU-RELOCK - THE CAMERA COMES BACK ON THE KEY THAT CLOSED THE WINDOW (2026-09-22, Fedu on Discord: a 1-3 second delay before the camera answers the mouse again after closing a menu). POINTER LOCK IS ONLY GRANTED INSIDE A USER GESTURE: the browser hands `requestPointerLock` out on the keypress the player just made and refuses it anywhere else, silently, with nothing retrying - so the look stays dead until the player's NEXT gesture happens to reach a relock arm. The delay is not a timer, it is however long it takes you to press something else. THE PORT ASKED A FRAME LATE: `makeLookGate` is the per-host reconciler and it runs on the FRAME, seeing the overlay slot drain and relocking on the next call, which is a new task with no user activation left. The fix is not a faster gate - it is the four hosts (standalone dungeon, standalone interior, town talk, and the world host's interior and dungeon arms) asking inside the key handler that closed the window, on BOTH edges, because a two-phase window like the automap closes on key-UP and that release is a gesture too. THE FIRST TWO PINS EXECUTE the mechanism and the gap: a real request is made and asks for `unadjustedMovement` (MAC1's raw device counts), a Chrome-shaped rejection is swallowed rather than fatal, an activated cursor survives the relock (U45's precedence), and the GATE IS DRIVEN to show that nothing has asked at the moment of the key and one request lands a frame later - the bug, measured - while PL3's grace keeps the host's in-gesture request from being torn down by a stale frame. The third holds the four call sites by SHAPE, because the gesture itself needs a browser: the incoming patch had put `const hadOverlay` BETWEEN `if (mode === 'interior') {` and its routeKey call, which broke U43's one-dispatch law in qs7_one_dispatch and flagsweep, so the read is hoisted above the mode ladder and pinned there. ONE MUTANT FOUND A HOLE IN THIS FILE'S OWN PIN rather than in the source: `relock` appears twice in world.js - the pause door's and the host literal's - so a whole-file match let the seam be renamed and still passed, while `host.relock?.()` is optional-chained and a missing seam is SILENT. It reads the literal's slice now. 10 mutants, 10 dead. |
+-| mods1_api.test.js | 12 | MODS1 (2026-10-13, a player: the accessibility mod "needs to be a module like a rust crate type of mod ... unchained from versioning ... it should work online" - `06-Systems/Mod-API.md`) - THE MOD API (`src/mods/modApi.js`, `moduleHost.js`, `modBus.js`; `app/lib/moduleFiles.cjs`; `src/ui/modulesCard.js`). A MANIFEST: read with its defaults (entry `module.js`), unknown fields, a bad slug, version, api, events, a path for an entry and a bad sha256 refused with their reasons. UNCHAINED FROM THE GAME: a module names an interface, never a build; one for interface N runs on N or more; it cannot reach past its own api; a field naming a game build is refused. THE EVENT TABLE IS APPEND-ONLY: every event, its interface and its arguments in order, pinned. THE BUS: a module hears the events its manifest lists and no others, a failing listener is isolated and named once, a module that keeps failing is switched off, a switched-off module hears nothing. A MODULE'S HANDLE: its own settings apart from every other's, its line and key only while it is on, exactly the handle's keys and frozen, nothing of the net in the source. THE HOST: each module judged and started on its own (running, off, refused for a future interface, a wrong folder, a bad manifest, a missing file, a hash mismatch, no default export, a throw); a module that is off is never imported; no shell, no modules; a duplicate id refused. THE PLAYER'S SWITCHES: the ids turned off, kept, a junk record none. THE SHELL'S DOOR over a real temp folder: slug folders only, plain `.js` names, nothing past them (`..`, a separator, the wrong type). THE SEAMS by source: the HUD, the shared magic engine and the quest bridge announce their events on the one bus (the bridge's look for a module alone leaves the faces' gate as it was, the lens stays pure), the page starts the modules off the entry's static graph, the shell offers the folder. THE MODULES CARD over a fake pane: a row a module, a switch that is kept and applies at once, none for a refused one, the no-shell and no-modules words. Campaign: ten mutants of the bus, the host, the shell's door and the event table, each red. |
++| mods1_api.test.js | 17 | MODS1 (2026-10-13, a player: the accessibility mod "needs to be a module like a rust crate type of mod ... unchained from versioning ... it should work online" - `06-Systems/Mod-API.md`) - THE MOD API (`src/mods/modApi.js`, `moduleHost.js`, `modBus.js`; `app/lib/moduleFiles.cjs`; `src/ui/modulesCard.js`). A MANIFEST: read with its defaults (entry `module.js`), unknown fields, a bad slug, version, api, events, a path for an entry and a bad sha256 refused with their reasons. UNCHAINED FROM THE GAME: a module names an interface, never a build; one for interface N runs on N or more; it cannot reach past its own api; a field naming a game build is refused. THE EVENT TABLE IS APPEND-ONLY: every event, its interface and its arguments in order, pinned. THE BUS: a module hears the events its manifest lists and no others, a failing listener is isolated and named once, a module that keeps failing is switched off, a switched-off module hears nothing. A MODULE'S HANDLE: its own settings apart from every other's, its line and key only while it is on, exactly the handle's keys and frozen, nothing of the net in the source. THE HOST: each module judged and started on its own (running, off, refused for a future interface, a wrong folder, a bad manifest, a missing file, a hash mismatch, no default export, a throw); a module that is off is never imported; no shell, no modules; a duplicate id refused. THE PLAYER'S SWITCHES: the ids turned off, kept, a junk record none. THE SHELL'S DOOR over a real temp folder: slug folders only, plain `.js` names, nothing past them (`..`, a separator, the wrong type). THE SEAMS by source: the HUD, the shared magic engine and the quest bridge announce their events on the one bus (the bridge's look for a module alone leaves the faces' gate as it was, the lens stays pure), the page starts the modules off the entry's static graph, the shell offers the folder. THE MODULES CARD over a fake pane: a row a module, a switch that is kept and applies at once, none for a refused one, the no-shell and no-modules words. Campaign: ten mutants of the bus, the host, the shell's door and the event table, each red. |
+ | modsonline.test.js | 10 | MODS-ONLINE-2 - EVERY MOD IS THE PLAYER'S ONLINE, AND THE GROUND IS THE ROOM'S (2026-09-22, Mac: "Is it possible to allow all mods to be toggled on and off for online?" and then "So all mods can now be toggled?"). MODS-ONLINE freed eight mods and left eight forced because they SOUNDED like world state; this file holds the reading that freed the rest and overturns one of that pass's own rulings. The port is already owner-authoritative everywhere a mod could disagree: the striker rolls the damage and the host applies the number without recomputing, a foe's stats are minted where it SPAWNS and a peer steps a puppet, a corpse's pile is the owner's word, and a blow is mitigated where it LANDS - damageShieldPool inside damageFoe for a foe and inside hurtPlayer for me - so the Shield Widget's block is the DEFENDER's own. None of that crosses as a rule; it crosses as a result. ONE THING IS THE FLOOR: Basic Roads rewrites terrain heights, so `Enabled` and `SmoothRoads` are the room's and were the only two switches the lane forced in the whole shelf (three since LANDFORM3, below - AUDIT LANDFORMS D13). THE THIRD PIN MEASURES THAT rather than asserting it - the real smoother is run over a road bed (the heights move) and then over every tile the river and stream tables can write (the heights come back byte-identical), which is why `RiversAndStreams` was free while `SmoothRoads` was not - until LANDFORM3 (2026-10-06, Mac: "Yes rivers should be online") cut painted rivers into the land in the landforms' kernel: it is the room's now, ON, the one key forced past its shipped default, named (`PAST_DEFAULT`), and the count is 47. The classification is TOTAL, every forced key is a declared key at the mod's own shipped default (the port's, for WEAR-VANILLA's three wear keys, which it ships off), the lock/pane/door copy is checked for the two claims that had stopped being true, and the freed modules are still swept for the wire, a save record or a roll. THE SEVENTH PIN CAME FROM A SURVIVING MUTANT that found a hole rather than a missing assertion: dropping `Object.hasOwn` from the lane makes `room['toString']` a FUNCTION handed back as a forced value, and modSettings had the same bug for real - every name on Object.prototype read as a declared switch, so `toString` sailed past the throw and a write of it stored a coerced function. All three doors take own keys now. MODS-ONLINE-3 (Mac: "What part of mod toggle for online do you not understand?") ADDED THE TWO ROWS THAT WERE NOT IN THE MOD STORE. Climates & Calories (`survival`) and Weapon Sheathing (`mwSheathing`) sit in the Mods pane under their authors' names and were still forced online, kept there only because the PORT wrote the code and so carries the switch on the prefs shelf - a distinction that exists nowhere a player can see it. Both pass the same reading: the survival system writes only the entity handed to it (the eighth pin RUNS ten hours of a snowbound night on one body and reads the other back byte-identical), a camp is local, and the one thing that leaves the machine is a corpse's food minted by the KILLER - which is already the owner's word granted to peers, Unleveled Loot's exact shape; and a scabbard is how MY machine DRAWS someone else, which is `peerClassSprites`'s category. The seventh pin makes it total across STORES rather than across mods: every row whose kinds carry `mod` is the player's online, and the one exception - `enhancedEnvironments`, the port's own enhanced outdoors carrying the shared weather's evolution, wearing a mod kind only because Dynamic Skies opens its knobs there - is NAMED, so freeing it is a decision somebody makes rather than a list quietly growing back. MODS-ONLINE-4 (Mac: "What about player balance?") THEN MOVED THREE BACK, and the lesson is in the question: the first three passes all asked "does it desync?" and never asked "does my switch reach another player?". The port IS owner-authoritative, so none of them broke a room - but OWNERSHIP IS NOT PRIVACY, and two of the places a machine owns something are places its answer is handed to everyone else. A world room's layout foes are its HOST's (WORLD2), so the host's Meaner Monsters and PCAAO are what the whole PARTY fights - a host with either off runs a softer dungeon for four people who never chose it and cannot see why. A corpse's pile is granted to peers (WORLD6b-iii(c)) and a room's containers are shared (WORLD4), so Unleveled Loot's rolls do not stay with the roller and two rulesets feed one economy. Climates & Calories was re-asked the same question and KEPT the player's: it reaches another player only through a corpse's FOOD, meat and rations with no power and no gear, and forcing it means nobody may opt out of freezing to death. The lock copy is split, because the three are not locked for the ground's reason and a lock that gives the wrong reason is as useless as no reason. 16 mutants, 16 dead; two older source pins re-aimed (surv2_items, ws1_sheathing) and one stale mutant record re-aimed. MODS-ONLINE-5 (2026-09-23, Mac: "Yeah its the reason we forced PCAAO"): one ruleset per room - RR's six combat overrides forced at the mod's own defaults (the classic bonus off), intensive training forced OFF (the shared clock would hand its +4 out for free), eight of RR's own-run switches pinned free, PCAAO's one-switch precedent, the lane's own words. |
+ | crash2_window_contract.test.js | 4 | CRASH2 - THE CONTRACT ITSELF, DERIVED (2026-09-15): the gate CRASH1 shipped, audited one commit later, because the standing rule says the gate IS the fix and so the gate is a claim like any other. It was wrong three ways. F1 - IT READ FIVE DOORS OF EIGHT IN SILENCE: its block finder matched `return {` alone, so `ui/pauseDoor.js` and `ui/inventoryDoor.js` (which name the object first) and `ui/travelMapDoor.js` (which returns classes) were skipped, and the suite went green over a claim covering five of eight doors - one of the two skipped being the pause menu, which is half of what the player reported. F2 - ITS ARM LIST WAS TYPED BY HAND and wrong in both directions: it demanded `close`, which no host has ever called on a slot (the hosts free a window with `dispose?.()`), and omitted `tick`, which `interior.js:"overlay.tick(dt)".."drainOverlay();"` calls unguarded every frame. F3 - IT ASSUMED THE POPULATION WAS `ui/*Door.js`: twelve window classes are constructed straight into a slot, and `townTalk.js:"windows.eachPaintedBeneath"` paints every COVERED window too. So the arms are read off the four window-stack hosts, scoped to the ENCLOSING FUNCTION rather than a fixed lookback (the first pass used four lines and mis-read `townTalk.js:"overlay.hover(v ? v[0] : -1, v ? v[1] : -1, e)"` as unguarded - its guard sits eight lines up; HARD2's D10 pin was re-aimed for the same reason), and `test/windowContract.mjs` holds the one derivation both gates ask. The four tests: the arms derive from the hosts and F2 is pinned in both directions; every DOM door is READ (a door the finder cannot parse is a FAILURE, never a skip - the whole lesson); every DOM door answers input/draw/dispose; and `interior.js` keeps the CLOSED population that lets it alone demand `tick` (six windows in this tree answer no tick, so demanding the union would be a false red six times over). Mutation-verified three ways: restoring CRASH1's narrow finder reddens the coverage test, removing `input` from `pauseDoor` reddens the arm test, guarding `interior.js`'s tick call reddens the derivation test. No second live crash was found - the finding is about the gate, not the game. |
+ | citedrift.test.js | 13 | ROAD-E fix-D - THE CITATION IS PART OF THE CLAIM (2026-09-02). Wave E's review found the same defect four times and every instance was a POINTER: a line number that was exact one commit earlier and named a stranger at the merge. CD1 THE ROW EXISTS: `ui/spellMakerWindow.js` declared "RECORDED DEPARTURES" and closed the first with "Ledger A carries the widget row already (:686)" - section A carried no widget row at all (the AUDIT 17m / F7 shape, a claim of approval standing in for one) and :686 was the stat-colour NIT row by then. Ledger A row TB1 exists now, inside section A's own line range, naming all five windows that draw their own entry box; the two sites that declare the departure cite it BY NAME and carry no bare Ledger line number; Port-Status' section-A tally (rows, struck, standing) is re-derived from the Ledger; and the gate that missed it is pinned open - `\bDEPARTURE\b` is FALSE on the plural shout, which is how nine files went unscanned. CD2 THE COUNT IS THE TOOL'S: `Road-To-1-1.md` and `Port-Status` both said the wave left 17 open flags, one as the falsifiable claim that "`regenOpenFlags --check` now answers 17"; six lanes each retired a flag against their own 19-row base and the tool answers 13. Both pages are now read against `Home.md`'s own list, and the six closures are named. CD3 THE ROW IDENTIFIERS RESOLVE: section 2's fourteen `:NNN` cites, its two loose ones, and its own bounds and struck/unstruck tallies are each resolved against the Port-Ledger line they name - the wave inserted two rows above section C and every one of them moved. CD4/CD5 THE SOURCE CITES RESOLVE: `questMacros.js` -> `travelMapWindow.js`'s `%tcn` surgery, `toneProbe.mjs` -> townTalk's `native` slot, `worldWhereIsProbe.mjs` -> its `overlay` slot, the THREE PROBES row's own "each named with its live line" range, and every `Port-Ledger.md:NNN` cite in `src/`, `test/` and `Testing.md`. CD6 THE PAGE'S `src/` CITES RESOLVE TOO (AUDIT 58 R1): the F5 wave re-resolved the Ledger row identifiers that moved with its inserted row - correctly - and then bumped four cites into `ui/hud.js` and `ui/nativeInventory.js`, two files it never touched, turning three EXACT cites wrong (`:456` -> a comment, `:459` -> the body of the enhanced branch instead of the branch, `:470` -> the wrong field) and leaving a fourth stale one stale. CD3 only ever looks at Ledger row identifiers, so a numeric sweep over this page was invisible. The ui-hud row's four `hud.js` cites are read off the row and resolved against their anchors, and item 9's reveal clause now cites the hook as a RANGE plus the host arm that fills it, both resolved. CD1's section-A guard also grew the ORDINALS: "the Nth is X" is resolved against the table's Nth row, because every earlier row was APPENDED (so the ordinal and the tally moved together) and F5's insertion at position 2 broke both halves of the sentence at once. 13 mutations, 13 dead. AUDIT 58 (records) grew three of them: CD1 also resolves the PAUSE WINDOW’S VERSION-LINE departure - a live substitution of the port’s build tag for DFU’s VersionInfo strings that cited a Ledger A row nobody had written, invisible to `doctrine.test.js` because the file shouts no DEPARTURE token - against a section A row that names `src/ui/pauseWindow.js` and `src/buildTag.js`, cited BY NAME, with the substitution itself pinned so the row cannot outlive it; CD2 reads the page’s PROSE counts (the head paragraph, the one-sentence version, the list-1 heading and the Overall blocker count, number words included) and the count of unstruck SITES in list 1 against the list Home.md holds, because only the two "answers N" sentences were pinned and three other figures had drifted; CD3 resolves the prose "Ledger row `:NNN`" form, which was stale by six lines in three places while the numbered list beside it was exact. AUDIT 58 (seams) grew CD1 again, by EIGHT: each of the newly-rowed departures - the music replacement folder, the fuzzy find's doubles and ordinal collations, travel weather on every arrival, the conversation save's plain `dictQuestInfo`, the colour picker's four host seams, ASYNC ART shared by `hudEscortFaces.js` and `nativeTalk.js`, the town map's plate label and arrow, and input's E-beside-Mouse0 and raw-button swing - is resolved to exactly one UNSTRUCK section A row that names its file, cited BY NAME from that file with no bare Ledger line number; and the AUDIT 58 gate in `doctrine.test.js` is pinned as TEXT (its section-A bounds, its strike filter and its claim regex) the way the plural shout is, because a gate's population is invisible from outside it + ROAD-G G7 (records sweep, 2026-09-04) TOOK THE `exterior.js` CLASS WHOLE. Thirty-six `exterior.js:NNN` cites stood across `src/` comments, bible pages and test headers and every one was stale BEFORE Wave F - the fixed-city host has taken a slice in nearly every wave since the numbers were written, so a cite exact at U44 was six hundred lines out by HEAD, and `playerEntity.js`'s was never right at all (the commit that wrote it landed on the town-talk topics table). Each is re-resolved BY CONTENT and pinned into CD4, plus the one still-OPEN Port-Status row into CD6 - its identifier was the triage's `:1033`, three slices out of date, where TP2 had moved the refusal to `:1299`. The sweep also wrote down the convention the page had only implied: a `:NNN` in a STRUCK row is the measurement's line and names nothing live, an UNSTRUCK row is a live claim and is re-resolved, and where a fix DELETED the code a row describes the number is retired and the seam named instead - CD4 pins that absence too, because "the number is retired" over live code is the same lie one step on. CD1 gained the ROAD-G G7 half of the doctrine widening: the three section-A rows the sweep owed (the `AdvancedClimbing` scaffolding, the merchant popup's accelerators, the port's scalar clock), each cited BY NAME from its file with no bare Ledger line number, the engine-PRNG rule's LIVE ROSTER, the dungeon-seed bullet's two files, and the widened population pinned as TEXT the way the plural shout is. And the PROBE FLEET, which carries one of these cites FOURTEEN times: thirteen probe headers quote the same keydown-ladder seam, so a stale number had become folklore - they are read as a SET now, one range resolved at BOTH ends, plus `bootProbe`'s shot-ready line. 6 mutants (a src cite bumped by one, this page's row identifier bumped, a roster file dropped, a new section-A row struck, the gate narrowed back to the shout, a retired number put back over deleted code) and 3 more on the fleet (one probe drifts, the whole fleet drifts together, bootProbe drifts), 9 killed. + ROAD-G REVIEW (2026-09-04) CORRECTED FIVE CITES THE SWEEP ITSELF EMITTED, and turned three pins around to reach them. CD5 walked a FOUR-FILE roster while calling itself "anywhere in the tree", so it never read the two files carrying the sweep's own misses: Port-Status' three `Port-Ledger.md:NNN` cites - two of them shifted +3 ARITHMETICALLY onto THE CLASSIC `.SAV` READER instead of the keybinding-registry row they quote (`:596`) - and `tools/parity/prepare.sh`, which spells it `Port-Ledger row :NNN`, a form the extraction regex could not match at all, and whose cite named an exterior-light row rather than the FaceUV matched-precision harness row (`:514`) its own sentence is about. Both files and both spellings are read now. CD4 read the `exterior.js` number out of the struck FieldOfView bullet and nothing else, so the sentence's ANCHOR - the function the other five cites read - was the one cite in it no pin touched, and it named line 24 of `src/ui/viewSettings.js` in a 23-line file; the anchor resolves against the `fieldOfView` export now. CD1's `AdvancedClimbing` entry listed ONE of the three files its row claims cite it BY NAME, and the row named a PlayerMoveScanner method the file does not have - `FindGroundPosition`/`HitDistance` is PlayerMotor's ground drop - while hanging the AcrobatMotor anti-bump cite off the scanner, where `PlayerMoveScanner.cs:190-194` is `AssignAdjacentSurface`, the OFF-ROAD half of the row's own dichotomy: the row names `FindStep`/`StepHitDistance` (`PlayerMoveScanner.cs:151-169`) now, resolved against the port's own site, `player/motor.js` and `player/climbing.js` cite the row by name instead of a bare `Ledger A`, and all three files are in the pin. And the engine-PRNG rule's "LIVE ROSTER" was a HAND LIST nineteen sites short of the tree while being nominated as the one line the widened gate resolves a class-rule cite against - CD1 walks tracked `src/` for the rule's own name and asserts the roster carries every site, with a population floor so a rewording cannot empty the walk. 9 mutants (each Port-Status cite back to Ledger row `:617`, prepare.sh's cite bumped, the doc's `viewSettings.js` line 24 back, the row's method pair back, its step-probe span bumped, motor.js and climbing.js back to the bare `Ledger A`, a new `ENGINE-PRNG` cite in a src file the roster does not name, a roster path deleted), 9 killed. + AUDIT 62 F24/F25 review: CD8c's own roster was the stale page this time. The slice that raised the sentinel guard from three drag machines to five left CD8c naming only the first three in `GUARDED`, so the pin was widened with the wording it guards - `src/ui/listPicker.js` and `src/ui/bankPurchaseWindow.js` joined the list, the forbidden-wording assertion rejects a stale "ALL THREE" beside the original "both" - the phrase itself lives only in the pin, so a page cannot re-introduce it by quoting it - and the Ledger row it reads must state ALL FIVE. The header comment also records what the three originals are NOT: the icon picker's arm is the two-part `vx >= 0 && vy >= 0`, the other four are vy-only, and no page may call them the same arm. 4 further mutants (the guard deleted from either new window, "ALL THREE" restored to the Ledger, "both" restored to this row), 4 killed. + AUDIT 65 (RC-1/RC-2/RC-3, the reference-cites lane): CD8b widened from ROAD-G G4's two windows to the port's C# addresses at large, in the same two parts. RC-2 is the UNKNOWN-MEMBER arm at full size - `IsAlreadyPlaced` is not DFU's name for anything: the double-injection guard is `IsAlreadyInjected` (GameObjectHelper.cs:978, called :950) over the whole-scene `FindObjectsOfTypeAll<QuestResourceBehaviour>` list at :926, where worldModes cited a BLANK :917 at both of its collectors while dungeonContext already had :926 (two siblings on one list, disagreeing) - so tracked `src/`, `test/` and `bible/` are walked for the invented name (the half that holds with no checkout) and each host's own cite is read out of its comment and resolved. RC-1 is one WRONG FILE copied to four sites: the ReservedKeys law is InputManager.cs:73's empty array (`new KeyCode[] { }`, exposed :174-177), consulted by DaggerfallControlsWindow.cs:410, whose own :73 is a brace - `ui/enhancedControls.js`, `ui/enhancedMenu.js`, `ui/controlsWindow.js` and `test/enhancedControls.test.js` name both ends now, and the pin rejects the old address by name. RC-3's five are SINGLE-LINE cites that QUOTE the line they name: StaticNPC.cs:155 (the FlatResource.Position the nameSeed reads, not :154's TextureRecord) and :158 (the zero buildingKey, not :157's LocationIndex), DaggerfallStartNewGameWizard.cs:571-572 (the two stat copies, not :570-571) and :574 (SetBonusSkillPoints, not :575's faceIndex), SerializableEnemy.cs:116 (`data.questSpawn`, not :117's mobileGender) - each number read from the port comment and resolved against the .cs. 18 mutants, 18 killed: 8 on the text halves, which redden in CI, and 10 on the resolve halves, run under DFU_PATH because Port-Doctrine keeps the reference EXTERNAL and that half skips without a checkout. CD7b (AUDIT 625 D3, 2026-10-05): a cite's range is written with an ASCII hyphen - citeShift, citeMerge and CD7 read no other, so a typographic dash hid a range from all three: Settings-Screen-Spec set its sixteen with U+2011, eight had run backwards and PR #625's own shift made a ninth; the sixteen re-resolved and set in ASCII, and the pin dead under one set back (`tools/mutants/audit625.json`). CITE-ANCHOR (2026-10-06): the pins read anchors - a pick captures the quote and resolves it as the gate does; a range is named by its first line, so a pin that held a range's END holds the block that line opens; CD4's three end-only entries went with the ends. |
+diff --git a/modules/README.md b/modules/README.md
+index 5388c3fc1d..617d7362d2 100644
+--- a/modules/README.md
++++ b/modules/README.md
+@@ -14,7 +14,7 @@ my-module/
+ ```
+ 
+ - `id` is the folder's name (`a-z`, `0-9`, `-`). `version` is yours. `events` is everything the module hears.
+-- `dfo` is the module's own handle: `on`, `store`, `say`, `onKey`, `api`, `id` - and nothing else. No door to the net, the disk
++- `dfo` is the module's own handle: `on`, `store`, `say`, `onKey`, `retarget`, `api`, `id` - and nothing else. No door to the net, the disk
+   or another module.
+ - Events (interface 1): `questMark` (the compass's quest mark, every HUD frame), `quests` (the quest views, after each look),
+   `drawFx` (the world pass, with the renderer for drawing in the 3D view and a read-only `world` probe: `floor(x, y, z)` and `ray(origin, dir, max)`, which is how the guide trail goes round walls and lies on the floor).
+@@ -28,9 +28,10 @@ Install into the desktop app's Mods folder (`<user data>/Mods/<id>/`) and switch
+ 
+ | folder | listens to | |
+ | --- | --- | --- |
+-| `waypoint/` | `questMark` | a diamond in the view over the quest's place, with the distance (F7) |
++| `waypoint/` | `questMark`, `drawFx` | a diamond over the compass mark's spot on the floor, with distance and time at your pace, dim behind walls (F7; Shift+F3 changes its look) |
+ | `quest-tracker/` | `quests`, `questMark` | a panel of every active quest (Shift+F7) |
+-| `guide-trail/` | `questMark`, `drawFx` | gold embers along the way to the quest, or back the way you came (F4) |
++| `guide-trail/` | `questMark`, `drawFx` | embers along the way round walls to the compass mark - by the nearest door when it is inside a building - or back the way you came (F4; Shift+F4 changes the look) |
++| `pins/` | `questMark`, `drawFx` | F2 drops a pin where you look, F3 cycles quest / pins, Shift+F2 removes one: the compass, waypoint and trail follow it |
+ 
+ `guide-trail` is written as several files (`src/`) and bundled into its `module.js`; the other two are one file each.
+ 
+diff --git a/modules/guide-trail/module.js b/modules/guide-trail/module.js
+index cc42d091b2..6623149c60 100644
+--- a/modules/guide-trail/module.js
++++ b/modules/guide-trail/module.js
+@@ -17,6 +17,14 @@ var GUIDE_SNAKE_M = 0.35;
+ var GUIDE_POOL_ALPHA = 0.5;
+ var GUIDE_GOLD = Object.freeze([1, 0.82, 0.38]);
+ var GUIDE_EMBER = Object.freeze([1, 0.55, 0.18]);
++var GUIDE_STYLES = Object.freeze({
++  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1 }),
++  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1 }),
++  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1 }),
++  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1 }),
++  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3 })
++});
++var GUIDE_STYLE_ORDER = Object.freeze(Object.keys(GUIDE_STYLES));
+ var TAU = Math.PI * 2;
+ var smooth = (a, b, x) => {
+   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+@@ -85,7 +93,7 @@ function createEmberField(max = GUIDE_MAX_EMBERS) {
+   return {
+     embers,
+     /** @param {number[][]|null} path @param {number} t seconds @param {{ truncated?: boolean, brightness?: number }} [o] */
+-    fill(path, t, { truncated = true, brightness = 1 } = {}) {
++    fill(path, t, { truncated = true, brightness = 1, style = GUIDE_STYLES.gold } = {}) {
+       if (!path || path.length < 2) return 0;
+       const L = polylineLength(path);
+       if (!(L > GUIDE_NEAR_M)) return 0;
+@@ -114,21 +122,19 @@ function createEmberField(max = GUIDE_MAX_EMBERS) {
+         pool.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * snake : 0);
+         pool.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_POOL_LIFT_M;
+         pool.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * snake : 0);
+-        pool.alpha = Math.min(1, env * GUIDE_POOL_ALPHA * brightness * (0.8 + 0.2 * Math.sin(t * 2 + h2 * TAU)));
+-        pool.size = GUIDE_POOL_M;
+-        pool.color[0] = 1;
+-        pool.color[1] = 0.6;
+-        pool.color[2] = 0.12;
++        pool.alpha = Math.min(1, env * GUIDE_POOL_ALPHA * style.alpha * brightness * (0.8 + 0.2 * Math.sin(t * 2 + h2 * TAU)));
++        pool.size = GUIDE_POOL_M * style.size;
++        pool.color[0] = style.pool[0];
++        pool.color[1] = style.pool[1];
++        pool.color[2] = style.pool[2];
+         const e = embers[n++];
+         e.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * sway : 0);
+         e.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_LIFT_M + phase * GUIDE_RISE_M;
+         e.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * sway : 0);
+         const glow = Math.pow(Math.sin(Math.PI * phase), 0.9) * (0.75 + 0.25 * Math.sin(t * 7 + h2 * 50));
+-        e.alpha = Math.min(1, env * glow * brightness);
+-        e.size = GUIDE_SIZE_M[0] + h1 * (GUIDE_SIZE_M[1] - GUIDE_SIZE_M[0]);
+-        e.color[0] = GUIDE_GOLD[0] + (GUIDE_EMBER[0] - GUIDE_GOLD[0]) * h2;
+-        e.color[1] = GUIDE_GOLD[1] + (GUIDE_EMBER[1] - GUIDE_GOLD[1]) * h2;
+-        e.color[2] = GUIDE_GOLD[2] + (GUIDE_EMBER[2] - GUIDE_GOLD[2]) * h2;
++        e.alpha = Math.min(1, env * glow * style.alpha * brightness);
++        e.size = (GUIDE_SIZE_M[0] + h1 * (GUIDE_SIZE_M[1] - GUIDE_SIZE_M[0])) * style.size;
++        for (let c = 0; c < 3; c++) e.color[c] = style.gold[c] + (style.ember[c] - style.gold[c]) * h2;
+       }
+       return n;
+     }
+@@ -211,7 +217,7 @@ function createGuideTrailFx({ renderer, clock = () => performance.now() / 1e3 })
+      * the player stands. Answers whether it drew.
+      * @param {number[][]|null} path @param {number[]|null} feet @param {{ brightness?: number, ahead?: number }} [o]
+      */
+-    draw(path, feet, { brightness = 1, ahead } = {}) {
++    draw(path, feet, { brightness = 1, ahead, style } = {}) {
+       const hide = () => {
+         if (effect) {
+           effect.hidden = true;
+@@ -222,7 +228,7 @@ function createGuideTrailFx({ renderer, clock = () => performance.now() / 1e3 })
+       if (!path || !feet || !ready()) return hide();
+       const stretch = trimAhead(path, feet, ahead);
+       if (!stretch) return hide();
+-      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness });
++      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness, style });
+       if (!n || !ensure()) return hide();
+       renderer.updateParticleEffect(pools, buf, packEmbers(buf, field.embers, n, 0, 2));
+       pools.hidden = false;
+@@ -446,26 +452,50 @@ function createRouter(world, { now = () => performance.now() } = {}) {
+     }
+   };
+ }
++var DOOR_RANGE_M = 40;
++var INSIDE_GAP_M = 4;
++function planToMark(router, world, feet, q) {
++  let got = router.plan(feet, q);
++  const end = got?.pts[got.pts.length - 1];
++  if (got && !got.reached && end && Math.hypot(end[0] - q[0], end[2] - q[1]) > INSIDE_GAP_M && typeof world?.doors === "function") {
++    const doors = world.doors(q[0], q[1], DOOR_RANGE_M).sort((a, b) => Math.hypot(a[0] - q[0], a[2] - q[1]) - Math.hypot(b[0] - q[0], b[2] - q[1]));
++    for (const d of doors.slice(0, 3)) {
++      const via = router.plan(feet, [d[0], d[2]]);
++      if (via && via.reached) {
++        got = { ...via, door: d };
++        break;
++      }
++    }
++  }
++  return got;
++}
+ 
+ // modules/guide-trail/src/setup.js
+ var TIERS = ["off", "quest", "exit"];
+-var SAID = { off: "Guide trail off", quest: "Guide trail: your tracked quest", exit: "Guide trail: the way back" };
++var SAID = { off: "Guide trail off", quest: "Guide trail: the compass mark", exit: "Guide trail: the way back" };
+ var EYE_M = 1.6;
+ var CRUMB_M = 1;
+ var CRUMBS_MAX = 6e3;
+ var JUMP_M = 25;
+ var REPLAN_MS = 500;
+ var MARK_FRESH_MS = 600;
++var HUD_LIVE_MS = 400;
+ function setup(dfo) {
+   let tier = dfo.store.get("tier", "quest");
+   if (!TIERS.includes(tier)) tier = "quest";
++  let look = dfo.store.get("look", "gold");
++  if (!GUIDE_STYLES[look]) look = "gold";
+   let mark = null;
++  let hudSeen = -1e9;
+   dfo.on("questMark", (q) => {
+-    mark = q && Number.isFinite(q[0]) ? { q: [q[0], q[1]], at: performance.now() } : null;
++    hudSeen = performance.now();
++    mark = q && Number.isFinite(q[0]) ? { q: [q[0], q[1]], at: hudSeen } : null;
+   });
++  const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
+   const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+   const crumbs = [];
+   let lastFeet = null;
++  let router = null, routerWorld = null, plan = null;
+   function crumb(feet) {
+     if (lastFeet && dist3(lastFeet, feet) > JUMP_M) {
+       crumbs.length = 0;
+@@ -479,7 +509,10 @@ function setup(dfo) {
+       if (crumbs.length > CRUMBS_MAX) crumbs.splice(0, crumbs.length - CRUMBS_MAX);
+     }
+   }
+-  let router = null, routerWorld = null, plan = null;
++  const planWay = (feet, world) => {
++    const got = planToMark(router, world, feet, mark.q);
++    return got ? smoothPath(got.pts, 2) : null;
++  };
+   function questWay(feet, world) {
+     const now = performance.now();
+     if (!world) return [feet, [mark.q[0], feet[1], mark.q[1]]];
+@@ -489,8 +522,7 @@ function setup(dfo) {
+       plan = null;
+     }
+     if (!plan || now - plan.at > REPLAN_MS || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > 3) {
+-      const got = router.plan(feet, mark.q);
+-      plan = { at: now, goal: mark.q, pts: got ? smoothPath(got.pts, 2) : null };
++      plan = { at: now, goal: mark.q, pts: planWay(feet, world) };
+     }
+     return plan.pts;
+   }
+@@ -499,7 +531,7 @@ function setup(dfo) {
+       if (!mark || performance.now() - mark.at > MARK_FRESH_MS) return null;
+       return questWay(feet, world);
+     }
+-    if (tier === "exit" && crumbs.length > 2) return smoothPath([feet, ...crumbs.slice().reverse()], 1);
++    if (tier === "exit" && crumbs.length > 2) return smoothPath([feet, ...crumbs.slice().reverse()], 2);
+     return null;
+   }
+   let fx = null, fxRenderer = null;
+@@ -517,7 +549,7 @@ function setup(dfo) {
+       fx = createGuideTrailFx({ renderer });
+       fxRenderer = renderer;
+     }
+-    fx.draw(pathFor(feet, world), feet);
++    fx.draw(pathFor(feet, world), feet, { style: GUIDE_STYLES[look] });
+   });
+   const set = (next) => {
+     if (!TIERS.includes(next)) return tier;
+@@ -527,9 +559,17 @@ function setup(dfo) {
+     return tier;
+   };
+   dfo.onKey("F4", (e) => {
++    if (!playing()) return;
+     e.preventDefault?.();
+     set(TIERS[(TIERS.indexOf(tier) + 1) % TIERS.length]);
+   });
++  dfo.onKey("Shift+F4", (e) => {
++    if (!playing()) return;
++    e.preventDefault?.();
++    look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
++    dfo.store.set("look", look);
++    dfo.say(`Guide trail look: ${look}`);
++  });
+ }
+ export {
+   setup as default
+diff --git a/modules/guide-trail/src/embers.js b/modules/guide-trail/src/embers.js
+index a13731d046..27623dffa8 100644
+--- a/modules/guide-trail/src/embers.js
++++ b/modules/guide-trail/src/embers.js
+@@ -29,6 +29,17 @@ export const GUIDE_POOL_ALPHA = 0.5;
+ export const GUIDE_GOLD = Object.freeze([1, 0.82, 0.38]);
+ export const GUIDE_EMBER = Object.freeze([1, 0.55, 0.18]);
+ 
++/** THE LOOKS (Shift+F4 cycles them): the two golds a spark is drawn between, the floor pool's colour, a size and a strength multiplier.
++ *  Gold is the game's own; the others are for contrast and colour-blindness (a cyan or a magenta stream reads where gold and snow do not). */
++export const GUIDE_STYLES = Object.freeze({
++  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1 }),
++  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1 }),
++  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1 }),
++  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1 }),
++  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3 }),
++});
++export const GUIDE_STYLE_ORDER = Object.freeze(Object.keys(GUIDE_STYLES));
++
+ const TAU = Math.PI * 2;
+ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+ const frac = (x) => x - Math.floor(x);
+@@ -126,7 +137,7 @@ export function createEmberField(max = GUIDE_MAX_EMBERS) {
+   return {
+     embers,
+     /** @param {number[][]|null} path @param {number} t seconds @param {{ truncated?: boolean, brightness?: number }} [o] */
+-    fill(path, t, { truncated = true, brightness = 1 } = {}) {
++    fill(path, t, { truncated = true, brightness = 1, style = GUIDE_STYLES.gold } = {}) {
+       if (!path || path.length < 2) return 0;
+       const L = polylineLength(path);
+       if (!(L > GUIDE_NEAR_M)) return 0;
+@@ -152,19 +163,17 @@ export function createEmberField(max = GUIDE_MAX_EMBERS) {
+         const phase = frac(t * 0.28 + h3);
+         const pool = embers[n++];   // the floor's glow under this slot's spark: on the path itself, a slow shimmer
+         pool.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * snake : 0); pool.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_POOL_LIFT_M; pool.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * snake : 0);
+-        pool.alpha = Math.min(1, env * GUIDE_POOL_ALPHA * brightness * (0.8 + 0.2 * Math.sin(t * 2 + h2 * TAU)));
+-        pool.size = GUIDE_POOL_M;
+-        pool.color[0] = 1; pool.color[1] = 0.6; pool.color[2] = 0.12;   // a deep amber: the pool is a translucent stain, and amber still reads on snow where a pale gold would not
++        pool.alpha = Math.min(1, env * GUIDE_POOL_ALPHA * style.alpha * brightness * (0.8 + 0.2 * Math.sin(t * 2 + h2 * TAU)));
++        pool.size = GUIDE_POOL_M * style.size;
++        pool.color[0] = style.pool[0]; pool.color[1] = style.pool[1]; pool.color[2] = style.pool[2];   // a deep amber: the pool is a translucent stain, and amber still reads on snow where a pale gold would not
+         const e = embers[n++];
+         e.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * sway : 0);
+         e.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_LIFT_M + phase * GUIDE_RISE_M;
+         e.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * sway : 0);
+         const glow = Math.pow(Math.sin(Math.PI * phase), 0.9) * (0.75 + 0.25 * Math.sin(t * 7 + h2 * 50));
+-        e.alpha = Math.min(1, env * glow * brightness);
+-        e.size = GUIDE_SIZE_M[0] + h1 * (GUIDE_SIZE_M[1] - GUIDE_SIZE_M[0]);
+-        e.color[0] = GUIDE_GOLD[0] + (GUIDE_EMBER[0] - GUIDE_GOLD[0]) * h2;
+-        e.color[1] = GUIDE_GOLD[1] + (GUIDE_EMBER[1] - GUIDE_GOLD[1]) * h2;
+-        e.color[2] = GUIDE_GOLD[2] + (GUIDE_EMBER[2] - GUIDE_GOLD[2]) * h2;
++        e.alpha = Math.min(1, env * glow * style.alpha * brightness);
++        e.size = (GUIDE_SIZE_M[0] + h1 * (GUIDE_SIZE_M[1] - GUIDE_SIZE_M[0])) * style.size;
++        for (let c = 0; c < 3; c++) e.color[c] = style.gold[c] + (style.ember[c] - style.gold[c]) * h2;
+       }
+       return n;
+     },
+diff --git a/modules/guide-trail/src/fx.js b/modules/guide-trail/src/fx.js
+index dbde54bf71..91517bfcbf 100644
+--- a/modules/guide-trail/src/fx.js
++++ b/modules/guide-trail/src/fx.js
+@@ -94,12 +94,12 @@ export function createGuideTrailFx({ renderer, clock = () => performance.now() /
+      * the player stands. Answers whether it drew.
+      * @param {number[][]|null} path @param {number[]|null} feet @param {{ brightness?: number, ahead?: number }} [o]
+      */
+-    draw(path, feet, { brightness = 1, ahead } = {}) {
++    draw(path, feet, { brightness = 1, ahead, style } = {}) {
+       const hide = () => { if (effect) { effect.hidden = true; pools.hidden = true; } return false; };
+       if (!path || !feet || !ready()) return hide();
+       const stretch = trimAhead(path, feet, ahead);
+       if (!stretch) return hide();
+-      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness });
++      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness, style });
+       if (!n || !ensure()) return hide();
+       // the field writes a floor pool and then a spark for every slot of the window: the pools are the even quads, the sparks the odd
+       renderer.updateParticleEffect(pools, buf, packEmbers(buf, field.embers, n, 0, 2));
+diff --git a/modules/guide-trail/src/route.js b/modules/guide-trail/src/route.js
+index 4e739ba2ec..49b8548fab 100644
+--- a/modules/guide-trail/src/route.js
++++ b/modules/guide-trail/src/route.js
+@@ -158,3 +158,25 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
+     },
+   };
+ }
++
++const DOOR_RANGE_M = 40;   // a door this near a goal the street cannot reach is the way in
++const INSIDE_GAP_M = 4;    // the plan ended this far short of the goal: the goal is shut in
++
++/**
++ * The way to `q` ([x, z]) - or, when the goal is shut in (the plan ends INSIDE_GAP_M or more short of it) and the host hands over
++ * the street's doors (`world.doors(x, z, range)` -> [x, y, z]), the way to the door nearest the goal that can be reached. Pure but
++ * for the router's cache. @param {ReturnType<typeof createRouter>} router @param {any} world @param {number[]} feet @param {number[]} q
++ * @returns {{ pts: number[][], reached: boolean, door?: number[] }|null}
++ */
++export function planToMark(router, world, feet, q) {
++  let got = router.plan(feet, q);
++  const end = got?.pts[got.pts.length - 1];
++  if (got && !got.reached && end && Math.hypot(end[0] - q[0], end[2] - q[1]) > INSIDE_GAP_M && typeof world?.doors === 'function') {
++    const doors = world.doors(q[0], q[1], DOOR_RANGE_M).sort((a, b) => Math.hypot(a[0] - q[0], a[2] - q[1]) - Math.hypot(b[0] - q[0], b[2] - q[1]));
++    for (const d of doors.slice(0, 3)) {
++      const via = router.plan(feet, [d[0], d[2]]);
++      if (via && via.reached) { got = { ...via, door: d }; break; }
++    }
++  }
++  return got;
++}
+diff --git a/modules/guide-trail/src/setup.js b/modules/guide-trail/src/setup.js
+index fd98f140f0..0b37eabab7 100644
+--- a/modules/guide-trail/src/setup.js
++++ b/modules/guide-trail/src/setup.js
+@@ -1,35 +1,48 @@
+ // MODULE: GUIDE TRAIL - warm gold embers along the way to where you are going.
+ //
+-// Gold embers drift up off the floor and stream toward the goal. Two goals: the place the game's own compass marks for the
+-// tracked quest (Quest marks on; Exact Quest guidance for the inside of dungeons and buildings), and the way BACK - the
+-// player's own footsteps walked in reverse, a metre apart, since the last time the camera jumped 25 m (a teleport or a load
+-// starts a new run). Hears `questMark` and `drawFx`; reaches nothing else.
++// Gold embers drift up off the floor and stream toward the goal. Two goals: the place the game's own compass marks (the tracked
++// quest - or a pin another module put there with `retarget`; Quest marks on, Exact Quest guidance for the inside of dungeons and
++// buildings), and the way BACK - the player's own footsteps walked in reverse, a metre apart, since the last time the camera
++// jumped 25 m (a teleport or a load starts a new run). Hears `questMark` and `drawFx`; reaches nothing else.
+ //
+-// Key: F4 cycles off / quest / way back. The embers are hidden by walls, so a straight line to a quest through a building shows
+-// only the stretch you can see.
+-import { smoothPath } from './embers.js';
++// The way to the mark is PLANNED over the game's read-only world probe (route.js): round walls and buildings, on the floor, and -
++// where the mark is inside a building and the game hands over the street's doors - by the door that is nearest it.
++//
++// Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F4 means something else):
++//   F4        cycles off / quest / way back
++//   Shift+F4  cycles the look: gold, ivory, cyan, magenta, large
++import { smoothPath, GUIDE_STYLES, GUIDE_STYLE_ORDER } from './embers.js';
+ import { createGuideTrailFx } from './fx.js';
+-import { createRouter } from './route.js';
++import { createRouter, planToMark } from './route.js';
+ 
+ const TIERS = ['off', 'quest', 'exit'];
+-const SAID = { off: 'Guide trail off', quest: 'Guide trail: your tracked quest', exit: 'Guide trail: the way back' };
++const SAID = { off: 'Guide trail off', quest: 'Guide trail: the compass mark', exit: 'Guide trail: the way back' };
+ const EYE_M = 1.6;           // the eye above the feet
+ const CRUMB_M = 1.0;         // a breadcrumb every metre
+ const CRUMBS_MAX = 6000;
+ const JUMP_M = 25;           // a camera jump this far is a new place: the breadcrumbs start again
+ const REPLAN_MS = 500;       // the way to the quest is planned again this often (and when the quest moves)
+ const MARK_FRESH_MS = 600;   // the compass stops handing over a mark when there is none
++const HUD_LIVE_MS = 400;     // the HUD draws every frame while the game is being played; a menu, a dialog or a map stops it
+ 
+ export default function setup(dfo) {
+   let tier = dfo.store.get('tier', 'quest');
+   if (!TIERS.includes(tier)) tier = 'quest';
++  let look = dfo.store.get('look', 'gold');
++  if (!GUIDE_STYLES[look]) look = 'gold';
+ 
+-  let mark = null;   // { q: [x, z], at: ms }
+-  dfo.on('questMark', (q) => { mark = q && Number.isFinite(q[0]) ? { q: [q[0], q[1]], at: performance.now() } : null; });
++  let mark = null;       // { q: [x, z], at: ms }
++  let hudSeen = -1e9;    // when the HUD last drew
++  dfo.on('questMark', (q) => {
++    hudSeen = performance.now();
++    mark = q && Number.isFinite(q[0]) ? { q: [q[0], q[1]], at: hudSeen } : null;
++  });
++  const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
+ 
+   const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+   const crumbs = [];
+   let lastFeet = null;
++  let router = null, routerWorld = null, plan = null;
+   function crumb(feet) {
+     if (lastFeet && dist3(lastFeet, feet) > JUMP_M) { crumbs.length = 0; router?.reset(); plan = null; }
+     lastFeet = feet;
+@@ -41,14 +54,13 @@ export default function setup(dfo) {
+   }
+ 
+   // the quest way: planned round walls and buildings, over the floor, through the game's read-only world probe
+-  let router = null, routerWorld = null, plan = null;
++  const planWay = (feet, world) => { const got = planToMark(router, world, feet, mark.q); return got ? smoothPath(got.pts, 2) : null; };
+   function questWay(feet, world) {
+     const now = performance.now();
+     if (!world) return [feet, [mark.q[0], feet[1], mark.q[1]]];   // an older host hands no probe: the straight line
+     if (routerWorld !== world) { router = createRouter(world); routerWorld = world; plan = null; }
+     if (!plan || now - plan.at > REPLAN_MS || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > 3) {
+-      const got = router.plan(feet, mark.q);
+-      plan = { at: now, goal: mark.q, pts: got ? smoothPath(got.pts, 2) : null };
++      plan = { at: now, goal: mark.q, pts: planWay(feet, world) };
+     }
+     return plan.pts;
+   }
+@@ -58,7 +70,7 @@ export default function setup(dfo) {
+       if (!mark || performance.now() - mark.at > MARK_FRESH_MS) return null;
+       return questWay(feet, world);
+     }
+-    if (tier === 'exit' && crumbs.length > 2) return smoothPath([feet, ...crumbs.slice().reverse()], 1);
++    if (tier === 'exit' && crumbs.length > 2) return smoothPath([feet, ...crumbs.slice().reverse()], 2);
+     return null;
+   }
+ 
+@@ -73,7 +85,7 @@ export default function setup(dfo) {
+       try { fx?.dispose(); } catch { /* the old renderer is gone */ }
+       fx = createGuideTrailFx({ renderer }); fxRenderer = renderer;
+     }
+-    fx.draw(pathFor(feet, world), feet);
++    fx.draw(pathFor(feet, world), feet, { style: GUIDE_STYLES[look] });
+   });
+ 
+   const set = (next) => {
+@@ -81,5 +93,11 @@ export default function setup(dfo) {
+     tier = next; dfo.store.set('tier', tier); dfo.say(SAID[tier]);
+     return tier;
+   };
+-  dfo.onKey('F4', (e) => { e.preventDefault?.(); set(TIERS[(TIERS.indexOf(tier) + 1) % TIERS.length]); });
++  dfo.onKey('F4', (e) => { if (!playing()) return; e.preventDefault?.(); set(TIERS[(TIERS.indexOf(tier) + 1) % TIERS.length]); });
++  dfo.onKey('Shift+F4', (e) => {
++    if (!playing()) return;
++    e.preventDefault?.();
++    look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
++    dfo.store.set('look', look); dfo.say(`Guide trail look: ${look}`);
++  });
+ }
+diff --git a/modules/pins/module.js b/modules/pins/module.js
+new file mode 100644
+index 0000000000..815a625b7d
+--- /dev/null
++++ b/modules/pins/module.js
+@@ -0,0 +1,77 @@
++// MODULE: PINS - your own places to go.
++//
++// F2 drops a pin where the crosshair meets the world (or 25 m ahead over open ground), F3 cycles what the game's compass marks:
++// the tracked quest, then each pin in turn, then the quest again; Shift+F2 removes the pin you are following. The compass, the
++// quest waypoint and the guide trail all follow the compass's mark, so they follow the pin with no more than this - the module asks
++// the game to mark the place (`dfo.retarget`) and talks to no other module. Reaching a pin (3 m) removes it and goes on to the
++// next, or back to the quest. Pins belong to the place they were dropped in: a jump of 150 m (a door, a dungeon, a travel, a load)
++// clears them, since every place has its own frame. Hears `questMark` (the HUD's heartbeat, the player's spot) and `drawFx`
++// (the camera and the world to aim at); reaches nothing else.
++//
++// Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F2 and F3 mean other things).
++const HUD_LIVE_MS = 400;
++const MAX_PINS = 8;
++const AHEAD_M = 25;       // the pin goes this far ahead when the crosshair meets nothing
++const REACH_M = 3;
++const NEW_PLACE_M = 150;
++
++export default function setup(dfo) {
++  /** @type {number[][]} */ let pins = [];
++  let active = -1;            // the pin being followed, or -1: the game's own quest
++  let hudSeen = -1e9, player = null;   // where the player stands, from the HUD's mark
++  let eye = null, aim = null, world = null;
++  const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
++
++  const follow = (i) => {
++    active = i;
++    dfo.retarget(i >= 0 ? pins[i] : null);
++  };
++  const label = (i) => (i < 0 ? 'the quest' : `pin ${i + 1}`);
++
++  dfo.on('questMark', (_q, p) => {
++    hudSeen = performance.now();
++    player = p ? [p[0], p[1]] : null;
++    if (active >= 0 && player && Math.hypot(pins[active][0] - player[0], pins[active][1] - player[1]) < REACH_M) {
++      dfo.say(`Reached ${label(active)}`);
++      pins.splice(active, 1);
++      follow(pins.length ? Math.min(active, pins.length - 1) : -1);
++    }
++  });
++
++  dfo.on('drawFx', (renderer, probe) => {
++    const e = renderer?._camPos, v = renderer?._view;
++    if (!e || !v) return;
++    if (eye && Math.hypot(e[0] - eye[0], e[2] - eye[2]) > NEW_PLACE_M) { pins = []; follow(-1); }   // a new place: its own frame
++    eye = [e[0], e[1], e[2]];
++    aim = [-v[2], -v[6], -v[10]];   // the camera's forward, from the view matrix's third column's rows
++    world = probe ?? null;
++  });
++
++  function drop() {
++    if (!eye || !aim) { dfo.say('No pin: the view is not up'); return; }
++    if (pins.length >= MAX_PINS) { dfo.say(`No pin: ${MAX_PINS} already - remove one (Shift+F2)`); return; }
++    const flat = Math.hypot(aim[0], aim[2]) || 1;
++    let d = AHEAD_M / flat * 1;   // 25 m along the ground at any pitch
++    const hit = world?.ray?.(eye, aim, 120);
++    if (hit !== null && hit !== undefined) d = Math.max(0.5, hit - 0.3);
++    const x = eye[0] + aim[0] * d, z = eye[2] + aim[2] * d;
++    pins.push([x, z]);
++    follow(pins.length - 1);
++    dfo.say(`Pin ${pins.length} dropped - following it`);
++  }
++
++  dfo.onKey('F2', () => { if (playing()) drop(); });
++  dfo.onKey('Shift+F2', () => {
++    if (!playing()) return;
++    if (active < 0) { dfo.say('No pin followed'); return; }
++    pins.splice(active, 1);
++    dfo.say('Pin removed');
++    follow(pins.length ? Math.min(active, pins.length - 1) : -1);
++  });
++  dfo.onKey('F3', () => {
++    if (!playing()) return;
++    if (!pins.length) { dfo.say('No pins - F2 drops one'); return; }
++    follow(active + 1 >= pins.length ? -1 : active + 1);
++    dfo.say(`Following ${label(active)}`);
++  });
++}
+diff --git a/modules/pins/module.json b/modules/pins/module.json
+new file mode 100644
+index 0000000000..eb85612ce5
+--- /dev/null
++++ b/modules/pins/module.json
+@@ -0,0 +1,9 @@
++{
++  "id": "pins",
++  "name": "Pins",
++  "version": "1.0.0",
++  "api": 1,
++  "author": "BearddOddity",
++  "description": "Drop a pin where you are looking (F2) and point the compass, the waypoint and the trail at it (F3 cycles quest and pins; Shift+F2 removes the pin). Pins last until you leave the place.",
++  "events": ["questMark", "drawFx"]
++}
+diff --git a/modules/quest-tracker/module.js b/modules/quest-tracker/module.js
+index 69b0f67572..15bd6777fa 100644
+--- a/modules/quest-tracker/module.js
++++ b/modules/quest-tracker/module.js
+@@ -89,5 +89,5 @@ export default function setup(dfo) {
+   }
+   requestAnimationFrame(frame);
+ 
+-  dfo.onKey('Shift+F7', () => { on = !on; dfo.store.set('on', on); dfo.say(on ? 'Quest panel on' : 'Quest panel off'); });
++  dfo.onKey('Shift+F7', () => { if (performance.now() - hudSeen > 400) return; on = !on; dfo.store.set('on', on); dfo.say(on ? 'Quest panel on' : 'Quest panel off'); });
+ }
+diff --git a/modules/waypoint/module.js b/modules/waypoint/module.js
+index c89f48f1ee..7271404d57 100644
+--- a/modules/waypoint/module.js
++++ b/modules/waypoint/module.js
+@@ -5,7 +5,7 @@
+ // dungeons and buildings). Hears `questMark` and `drawFx`, and reaches nothing else. When the game hands over its world probe, the diamond stands over the
+ // quest's own spot - the floor there (never below it) and a man's height up - seen in true perspective; otherwise it rides at a fixed height.
+ //
+-// Key: F7 on / off. Settings: this module's own store (`fov` - match the game's Field of View setting, default 65 - and `height`).
++// Keys (only while the game's HUD is up): F7 on / off, Shift+F3 cycles the look (gold, ivory, cyan, magenta, large). Settings: this module's own store (`fov` - match the game's Field of View setting, default 65 - and `height`).
+ const GOLD = '#c9962c';        // the game's own quest-mark gold
+ const HUD_STALE_MS = 300;      // the HUD stopped drawing (a menu, the map, a loading screen): hide
+ 
+@@ -39,21 +39,50 @@ export function project(view, proj, x, y, z, w, h) {
+ }
+ 
+ const ABOVE_FLOOR_M = 2.4;   // the diamond hangs this far over the floor of the quest's spot
++const HUD_LIVE_MS = 400;     // the HUD draws every frame while the game is played; a menu, a dialog or a map stops it (and the keys)
++/** THE LOOKS (Shift+F3 cycles them): the diamond's colour and whether it is large. Gold is the game's own quest gold. */
++export const WAYPOINT_LOOKS = Object.freeze({
++  gold: Object.freeze({ css: GOLD, big: false }),
++  ivory: Object.freeze({ css: '#f2e6c4', big: false }),
++  cyan: Object.freeze({ css: '#38d0e8', big: false }),
++  magenta: Object.freeze({ css: '#e060d0', big: false }),
++  large: Object.freeze({ css: GOLD, big: true }),
++});
++const LOOK_ORDER = Object.keys(WAYPOINT_LOOKS);
++
+ const distText = (d) => (d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d)} m`);
+ 
++/** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure. @param {number} d metres @param {number} mps metres a second (0 when standing) */
++export function distLabel(d, mps) {
++  const base = distText(d);
++  if (!(mps > 0.8) || d < 15) return base;
++  const s = d / mps;
++  return `${base} - ${s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`}`;
++}
++
+ export default function setup(dfo) {
+   let on = dfo.store.get('on', true);
++  let look = dfo.store.get('look', 'gold');
++  if (!WAYPOINT_LOOKS[look]) look = 'gold';
+   const fov = () => dfo.store.get('fov', 65);
+   const height = () => dfo.store.get('height', 0.42);
+ 
+   let mark = null;      // { tx, tz, px, pz, h } or null when the game marks nothing
+   let hudSeen = -1e9;   // when the HUD last drew
++  let pace = 0, lastP = null;   // the player's own walking pace (m/s), smoothed
+   dfo.on('questMark', (q, p, h) => {
+-    hudSeen = performance.now();
++    const now = performance.now();
++    if (p && lastP && now > lastP.t) {
++      const v = Math.hypot(p[0] - lastP.x, p[1] - lastP.z) / ((now - lastP.t) / 1000);
++      if (v < 30) pace += (v - pace) * Math.min(1, (now - lastP.t) / 2000);   // a teleport is not a pace
++    }
++    lastP = p ? { x: p[0], z: p[1], t: now } : null;
++    hudSeen = now;
+     mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], px: p[0], pz: p[1], h } : null;
+   });
++  const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
+ 
+-  let at = null;   // the diamond on the screen by the world's own perspective: { x, y, t } or null
++  let at = null;   // the diamond on the screen by the world's own perspective: { x, y, t, behind } or null
+   dfo.on('drawFx', (renderer, world) => {
+     at = null;
+     const eye = renderer?._camPos, view = renderer?._view, proj = renderer?._proj, canvas = renderer?.gl?.canvas;
+@@ -62,20 +91,30 @@ export default function setup(dfo) {
+     const y = (Number.isFinite(floor) ? floor : eye[1] - 1.6) + ABOVE_FLOOR_M;   // never under the floor: the floor under the spot, or the player's own
+     const r = canvas.getBoundingClientRect();
+     const p = project(view, proj, mark.tx, y, mark.tz, r.width, r.height);
+-    if (p) at = { x: r.left + p.x, y: r.top + p.y, t: performance.now() };
++    if (!p) return;
++    let behind = false;   // a wall between the eye and the spot: the diamond is drawn dim, never as if it were in plain view
++    if (world?.ray) {
++      const dx = mark.tx - eye[0], dy = y - eye[1], dz = mark.tz - eye[2], d = Math.hypot(dx, dy, dz);
++      if (d > 4) { const hit = world.ray([eye[0], eye[1], eye[2]], [dx / d, dy / d, dz / d], d); behind = hit !== null && hit < d - 2; }
++    }
++    at = { x: r.left + p.x, y: r.top + p.y, t: performance.now(), behind };
+   });
+ 
+   let ui = null;
+   function build() {
+     const css = document.createElement('style');
+     css.textContent = `
+-      #dfo-wp { position: fixed; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
++      #dfo-wp { --c: ${GOLD}; position: fixed; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
+         pointer-events: none; z-index: 2147483000; font: 14px/1.25 "Pixelify Sans", Georgia, serif; color: #f2e6c4;
+         text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+       #dfo-wp .gem { width: 16px; height: 16px; margin: 0 auto 6px; transform: rotate(45deg);
+-        border: 3px solid ${GOLD}; background: rgba(10, 12, 17, 0.6); box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.8); }
++        border: 3px solid var(--c); background: rgba(10, 12, 17, 0.6); box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.8); }
++      #dfo-wp.big { font-size: 20px; }
++      #dfo-wp.big .gem { width: 26px; height: 26px; border-width: 4px; margin-bottom: 10px; }
++      #dfo-wp.behind { opacity: 0.45; }
+       #dfo-wp.edge .gem { display: none; }
+-      #dfo-wp .arrow { display: none; font-size: 28px; color: ${GOLD}; }
++      #dfo-wp .arrow { display: none; font-size: 28px; color: var(--c); }
++      #dfo-wp.big .arrow { font-size: 40px; }
+       #dfo-wp.edge .arrow { display: block; }`;
+     document.head.append(css);
+     const wp = document.createElement('div');
+@@ -90,11 +129,15 @@ export default function setup(dfo) {
+     const live = performance.now() - hudSeen < HUD_STALE_MS;
+     if (!live || !on || !mark) { wp.style.display = 'none'; return; }
+     const w = innerWidth, h = innerHeight;
++    const L = WAYPOINT_LOOKS[look];
++    wp.style.setProperty('--c', L.css);
++    wp.classList.toggle('big', L.big);
+     const rel = bearing(mark.tx, mark.tz, mark.px, mark.pz, mark.h);
+     const world = at && performance.now() - at.t < HUD_STALE_MS && at.x > 40 && at.x < w - 40 && at.y > 20 && at.y < h - 40 ? at : null;
+     const x = world ? world.x : screenX(rel, w, h, fov());
+     wp.style.display = '';
+-    ui.dist.textContent = distText(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz));
++    wp.classList.toggle('behind', !!world?.behind);
++    ui.dist.textContent = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace);
+     if (x == null) {
+       wp.classList.add('edge');
+       ui.arrow.textContent = rel > 0 ? '▶' : '◀';
+@@ -115,5 +158,11 @@ export default function setup(dfo) {
+   }
+   requestAnimationFrame(frame);
+ 
+-  dfo.onKey('F7', () => { on = !on; dfo.store.set('on', on); dfo.say(on ? 'Quest waypoint on' : 'Quest waypoint off'); });
++  // keys, only while the game's HUD is up: in a menu, a dialog or a map F7 and F3 mean other things
++  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); dfo.say(on ? 'Quest waypoint on' : 'Quest waypoint off'); });
++  dfo.onKey('Shift+F3', () => {
++    if (!playing()) return;
++    look = LOOK_ORDER[(LOOK_ORDER.indexOf(look) + 1) % LOOK_ORDER.length];
++    dfo.store.set('look', look); dfo.say(`Waypoint look: ${look}`);
++  });
+ }
+diff --git a/src/mods/modApi.js b/src/mods/modApi.js
+index eda5107ebc..fc7ddc939f 100644
+--- a/src/mods/modApi.js
++++ b/src/mods/modApi.js
+@@ -110,6 +110,7 @@ export const MOD_FAILURE_LIMIT = 25;
+ export function createModBus({ storage = null, say = () => {}, onKey = () => {}, warn = console.warn } = {}) {
+   /** @type {Map<string, Set<{ id: string, fn: (...a: any[]) => void }>>} */ const listeners = new Map();
+   /** @type {Map<string, { manifest: Manifest, enabled: boolean, failures: number, off: string|null }>} */ const mods = new Map();
++  /** @type {Map<string, number[]>} the places modules ask the compass to point at instead (the last asked, by an enabled module, wins) */ const targets = new Map();
+ 
+   return {
+     api: MOD_API_VERSION,
+@@ -117,8 +118,20 @@ export function createModBus({ storage = null, say = () => {}, onKey = () => {},
+     /** Is anything listening to `event` - the game's seams ask this first, so an event nobody wants costs a lookup. @param {string} event */
+     has: (event) => (listeners.get(event)?.size ?? 0) > 0,
+ 
++    /**
++     * The game's side, once a frame before the compass is drawn: the quest mark the compass shows - `quest` ([x, z] or null), or
++     * the place an enabled module asked for with `dfo.retarget`. Pure but for the table.
++     * @param {number[]|null} quest
++     */
++    retarget(quest) {
++      let at = null;
++      for (const [id, xz] of targets) if (mods.get(id)?.enabled) at = xz;
++      return at ?? quest;
++    },
++
+     /** The game's side: announce `event`. Each enabled listener on its own, a failing one counted. @param {string} event @param {...any} args */
+     emit(event, ...args) {
++      if (event === 'questMark') args[0] = this.retarget(args[0] ?? null);   // every module sees the mark the compass shows
+       const set = listeners.get(event);
+       if (!set) return;
+       for (const l of set) {
+@@ -134,7 +147,7 @@ export function createModBus({ storage = null, say = () => {}, onKey = () => {},
+     /**
+      * A module's side: its handle. `dfo.on(event, fn)` works only for an event the manifest lists (others are refused, once,
+      * with a warning); `dfo.store` is the module's own settings, apart from every other's; `dfo.say` a line over the game;
+-     * `dfo.onKey('F7', fn)` a key; `dfo.api` the interface version this game speaks.
++     * `dfo.onKey('F7', fn)` a key; `dfo.retarget([x, z])` the place the compass marks, in place of the quest's; `dfo.api` the interface version this game speaks.
+      * @param {Manifest} manifest
+      */
+     register(manifest) {
+@@ -162,6 +175,11 @@ export function createModBus({ storage = null, say = () => {}, onKey = () => {},
+           const parts = spec.split('+'), code = /** @type {string} */ (parts.pop());
+           onKey(code, parts.includes('Shift'), (e) => { if (mods.get(manifest.id)?.enabled) fn(e); });
+         },
++        /** Point the compass (and every module that follows the quest mark) at [x, z] in the scene's frame; null gives it back to the game. */
++        retarget: (/** @type {number[]|null} */ xz) => {
++          targets.delete(manifest.id);
++          if (Array.isArray(xz) && Number.isFinite(xz[0]) && Number.isFinite(xz[1])) targets.set(manifest.id, [xz[0], xz[1]]);
++        },
+       });
+     },
+ 
+diff --git a/src/mods/modBus.js b/src/mods/modBus.js
+index 57cb52528d..32a3244375 100644
+--- a/src/mods/modBus.js
++++ b/src/mods/modBus.js
+@@ -13,7 +13,7 @@ import { createModBus } from './modApi.js';
+ function bindKey(/** @type {string} */ code, /** @type {boolean} */ shift, /** @type {(e: any) => void} */ fn) {
+   if (typeof window === 'undefined') return;
+   window.addEventListener('keydown', (e) => {
+-    if (e.code !== code || e.repeat || e.shiftKey !== shift) return;
++    if (e.code !== code || e.repeat || e.shiftKey !== shift || e.ctrlKey || e.altKey || e.metaKey) return;
+     const t = /** @type {any} */ (e.target);
+     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+     fn(e);
+diff --git a/src/scenes/hostMagic.js b/src/scenes/hostMagic.js
+index 05c29eda4c..d42e0e9111 100644
+--- a/src/scenes/hostMagic.js
++++ b/src/scenes/hostMagic.js
+@@ -99,7 +99,7 @@ export function burstClear(collider, a, b) {
+ }
+ 
+ export function createPlayerMagic({
+-  renderer, audio, getTexture, uploadRecord, uploadRecordFrame = null, collider,
++  renderer, audio, getTexture, uploadRecord, uploadRecordFrame = null, collider, doorSpots = null,
+   playerEntity, playerSinks, say, surfacePlayer,
+   foes, foeSinks, absorbCtx,
+   onTeleport = null,   // TP-slice: the Teleport effect's prompt seam (the host owns the box)
+@@ -222,6 +222,8 @@ export function createPlayerMagic({
+       return f;
+     },
+     ray(o, dir, max) { const d = collider.raycast(o, dir, max); return Number.isFinite(d) ? d : null; },
++    /** The street's building doors within `range` of (x, z): [x, y, z] each, [] where the host keeps none. */
++    doors(x, z, range) { try { return (doorSpots?.([x, 0, z], range) ?? []).map((d) => [d.pos[0], d.pos[1], d.pos[2]]); } catch { return []; } },
+   });
+   const mwFx = mwMagicFx ?? createMwMagicFx({ renderer });
+   // AUDIT SCHOOLS (L1 L1-L2, L2 F6-F7): `cast` - ONE CAST's token, minted at the release (`newCast`) and carried by every
+diff --git a/src/scenes/world.js b/src/scenes/world.js
+index a0670a0ba9..1faa8ab3fe 100644
+--- a/src/scenes/world.js
++++ b/src/scenes/world.js
+@@ -13019,6 +13019,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
+   const crowdDrawnHere = (p) => gateCrowd.shows(p.id) && peerRange.shows(p.id);   // GATE-CROWD: a player the court's crowd leaves undrawn is not there to press or aim a gift at; PEER-RANGE: nor one past the distance
+   const magic = createPlayerMagic({
+     renderer, audio, getTexture, uploadRecord, uploadRecordFrame,
++    doorSpots: (near, range) => _tactDoorSpots(near, range),   // MODS1: the street's doors, for a module's world probe
+     lairHere: () => {   // RVN7 (bible/12-Enhanced-AI/Feud-Arc.md 18.1): a deed in the open world - my map pixel, and the named dungeons in the boards' ring about it
+       const p = playerTravelPixel();
+       const dungeons = bountyDungeons(p.x, p.y, (x, y) => _bountyDungeonPixels.get(`${x},${y}`) || null).map((d) => ({ ...d, region: _dungeonRegionPixels.get(`${d.px},${d.py}`) ?? -1 }));
+diff --git a/src/ui/enhancedHud.js b/src/ui/enhancedHud.js
+index d037a0189f..101d7de89d 100644
+--- a/src/ui/enhancedHud.js
++++ b/src/ui/enhancedHud.js
+@@ -324,6 +324,7 @@ const questMarkCss = () => 'position:absolute;top:50%;box-sizing:border-box;widt
+   + `transform:rotate(45deg);border:2px solid ${QUEST_MARK_CSS};background:rgba(10,12,17,0.7);`
+   + 'box-shadow:0 0 3px 1px rgba(0,0,0,0.85);pointer-events:none';
+ function drawQuestMark(quest, playerXZ, heading01) {
++  quest = modBus.retarget(quest);   // MODS1: a module may have asked the compass to mark another place
+   if (!parts.questMark) {
+     const node = el('i', 'hud-quest');
+     node.style.cssText = questMarkCss();
+diff --git a/test/mods1_api.test.js b/test/mods1_api.test.js
+index 62d0df2b0c..4613bb9db1 100644
+--- a/test/mods1_api.test.js
++++ b/test/mods1_api.test.js
+@@ -134,7 +134,7 @@ test('MODS1: A MODULE\'S HANDLE - its own settings apart from every other\'s, it
+   bus.setEnabled('a', false);
+   a.say('silenced'); keys[0][2]({});
+   assert.deepEqual(said, ['hello', 'pressed'], 'a switched-off module neither speaks nor answers a key');
+-  assert.deepEqual(Object.keys(a).sort(), ['api', 'id', 'on', 'onKey', 'say', 'store'], 'the handle is exactly these - no door to the net, the disk or another module');
++  assert.deepEqual(Object.keys(a).sort(), ['api', 'id', 'on', 'onKey', 'retarget', 'say', 'store'], 'the handle is exactly these - no door to the net, the disk or another module');
+   assert.throws(() => { a.net = 1; }, TypeError, 'and frozen');
+   const src = read('src/mods/modApi.js');
+   assert.ok(!/\bfetch\(|WebSocket|XMLHttpRequest|sendBeacon|net\//.test(src.replace(/\/\/[^\n]*/g, '')), 'modApi.js reaches nothing of the net');
+@@ -308,7 +308,7 @@ test("MODS1: THE GUIDE TRAIL ROUTER - round a wall, on a slope, never under the
+       return t0 <= t1 ? t0 : null;
+     },
+   };
+-  const router = createRouter(world);
++  const router = createRouter(world, STILL);
+   const got = router.plan([0, 0, 0], [24, 0]);
+   assert.ok(got && got.pts.length > 10, 'a way is planned');
+   assert.equal(got.reached, true, 'it reaches the goal');
+@@ -324,7 +324,7 @@ test("MODS1: THE GUIDE TRAIL ROUTER - round a wall, on a slope, never under the
+   }
+   assert.ok(sharpest < 80, 'the sharpest turn was ' + sharpest.toFixed(0) + ' degrees');
+   assert.equal(router.sees([0, 0, 0], [20, 4, 0]), false, 'the wall is not seen through');
+-  assert.equal(createRouter({ ...world, floor: () => null }).plan([0, 0, 0], [5, 0]), null, 'no floor under the player: no way');
++  assert.equal(createRouter({ ...world, floor: () => null }, STILL).plan([0, 0, 0], [5, 0]), null, 'no floor under the player: no way');
+   // the diamond: a point over the view's centre lands mid-screen; one behind the camera is nowhere
+   const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+   const P = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.2, 0]);
+@@ -332,3 +332,143 @@ test("MODS1: THE GUIDE TRAIL ROUTER - round a wall, on a slope, never under the
+   assert.ok(mid && Math.abs(mid.x - 400) < 1e-6 && Math.abs(mid.y - 300) < 1e-6);
+   assert.equal(project(I, P, 0, 0, 5, 800, 600), null);
+ });
++
++test('MODS1: RETARGET - a module may point the compass elsewhere; every module and the HUD see the place, the last ask by an enabled module wins, off or null gives the quest back', () => {
++  const bus = createModBus({ warn() {} });
++  const mk = (id, events = ['questMark']) => ({ id, name: id, version: '1.0.0', api: 1, author: '', description: '', events, entry: 'module.js', sha256: null });
++  const pins = bus.register(mk('pins')), other = bus.register(mk('other'));
++  const seen = [];
++  other.on('questMark', (q) => seen.push(q));
++  assert.deepEqual(bus.retarget([1, 2]), [1, 2], 'no ask: the quest');
++  assert.equal(bus.retarget(null), null);
++  pins.retarget([9, 9]);
++  bus.emit('questMark', [1, 2], [0, 0], 0);
++  assert.deepEqual(seen.at(-1), [9, 9], 'a module that only listens follows the asked place');
++  assert.deepEqual(bus.retarget(null), [9, 9], 'and the HUD is handed it');
++  other.retarget([5, 5]);
++  assert.deepEqual(bus.retarget(null), [5, 5], 'the last ask wins');
++  bus.setEnabled('other', false);
++  assert.deepEqual(bus.retarget(null), [9, 9], 'a switched-off module asks no more');
++  pins.retarget([NaN, 1]);
++  assert.deepEqual(bus.retarget([1, 2]), [5, 5].length ? bus.retarget([1, 2]) : null);
++  bus.setEnabled('other', true);
++  other.retarget(null);
++  assert.deepEqual(bus.retarget([1, 2]), [1, 2], 'null (or junk) gives the quest back');
++});
++
++const STILL = { now: () => 0 };   // a clock that never runs out: the router's time budget must not make a loaded machine's test flaky
++
++/** A module's handle for a test: its handlers, keys and what it asked of the game. */
++function fakeHandle() {
++  const h = { on: {}, keys: {}, said: [], targets: [], store: new Map() };
++  h.dfo = {
++    api: 1, id: 'test',
++    on: (e, fn) => { h.on[e] = fn; return () => {}; },
++    onKey: (spec, fn) => { h.keys[spec] = fn; },
++    say: (t) => h.said.push(t),
++    retarget: (xz) => h.targets.push(xz),
++    store: { get: (k, f) => (h.store.has(k) ? h.store.get(k) : f), set: (k, v) => h.store.set(k, v) },
++  };
++  return h;
++}
++
++test('MODS1: PINS - F2 drops a pin where the crosshair meets the world, F3 cycles the compass quest -> pins -> quest, Shift+F2 removes, arrival goes on, a new place clears; keys only while the HUD is up', async () => {
++  const { default: setupPins } = await import('../modules/pins/module.js');
++  const h = fakeHandle(); setupPins(h.dfo);
++  const view = new Float32Array(16); view[2] = 0; view[6] = 0; view[10] = 1;   // forward = -(col3 rows) = (0, 0, -1): facing -z
++  const renderer = { _camPos: [100, 2, 100], _view: view };
++  const world = { ray: () => 10, floor: () => 0 };
++  h.on.drawFx(renderer, world);
++  h.keys.F2();
++  assert.equal(h.targets.length, 0, 'the HUD is not up: no key does anything');
++  h.on.questMark(null, [100, 100], 0);
++  h.keys.F2();
++  assert.deepEqual(h.targets.at(-1).map((n) => Math.round(n)), [100, 90], 'a pin where the ray met a wall (10 m, 0.3 short), and the compass follows it');
++  h.keys.F2();
++  assert.equal(h.said.at(-1).startsWith('Pin 2'), true);
++  h.keys.F3();
++  assert.equal(h.targets.at(-1), null, 'F3 past the last pin: the game\'s quest');
++  h.keys.F3();
++  assert.ok(Array.isArray(h.targets.at(-1)), 'and round to the first pin');
++  h.keys['Shift+F2']();
++  assert.equal(h.said.at(-1), 'Pin removed');
++  h.on.questMark(null, [100, 90.5], 0);   // standing at the pin's spot: arrived
++  assert.ok(h.said.some((s) => s.startsWith('Reached')), 'reaching a pin says so');
++  h.keys.F2(); h.keys.F2();
++  h.on.drawFx({ _camPos: [900, 2, 900], _view: view }, world);   // a jump: a new place
++  assert.equal(h.targets.at(-1), null, 'a new place clears the pins and gives the compass back');
++  h.keys.F3();
++  assert.equal(h.said.at(-1), 'No pins - F2 drops one');
++  for (let i = 0; i < 10; i++) h.keys.F2();
++  assert.match(h.said.at(-1), /8 already/, 'eight at most');
++});
++
++test('MODS1: THE LOOKS AND THE LABEL - every look fills the ember field in its own colour and size; the waypoint says the time at the player\'s pace only when they move', async () => {
++  const { createEmberField, GUIDE_STYLES, GUIDE_STYLE_ORDER } = await import('../modules/guide-trail/src/embers.js');
++  const { distLabel, WAYPOINT_LOOKS } = await import('../modules/waypoint/module.js');
++  const path = [[0, 0, 0], [0, 0, 20]];
++  const sizes = {};
++  for (const name of GUIDE_STYLE_ORDER) {
++    const f = createEmberField(); const n = f.fill(path, 3, { style: GUIDE_STYLES[name] });
++    assert.ok(n > 10, `${name} draws`);
++    sizes[name] = Math.max(...f.embers.slice(0, n).map((e) => e.size));
++    assert.ok(f.embers.slice(0, n).every((e) => e.color.every((c) => c >= 0 && c <= 1) && e.alpha <= 1), `${name} stays a colour`);
++  }
++  assert.ok(sizes.large > sizes.gold * 1.5, 'the large look is large');
++  assert.notDeepEqual(GUIDE_STYLES.cyan.ember, GUIDE_STYLES.gold.ember);
++  assert.equal(distLabel(420, 0), '420 m', 'standing: the distance alone');
++  assert.equal(distLabel(420, 4), '420 m - 2 min', 'walking: the time too');
++  assert.equal(distLabel(40, 4), '40 m - 10 s');
++  assert.equal(distLabel(5, 4), '5 m', 'near: no time');
++  assert.equal(distLabel(1500, 3), '1.5 km - 8 min');
++  assert.ok(Object.keys(WAYPOINT_LOOKS).includes('large') && WAYPOINT_LOOKS.large.big);
++});
++
++test('MODS1: NO CLASH WITH THE GAME - no module key is a default gameplay binding, no two modules share a key, every key handler is gated on the HUD being up', () => {
++  const actions = read('src/systems/inputActions.js');
++  const taken = new Set([...actions.matchAll(/\['([A-Za-z0-9]+)', '[A-Za-z0-9]+'\]/g)].map((m) => m[1]));
++  assert.ok(taken.has('F5') && taken.has('KeyM'), 'the game\'s default bindings were read');
++  const seen = new Map();
++  for (const id of ['waypoint', 'quest-tracker', 'guide-trail', 'pins']) {
++    const src = id === 'guide-trail' ? read('modules/guide-trail/src/setup.js') : read(`modules/${id}/module.js`);
++    const lines = src.split('\n').filter((l) => /dfo\.onKey\(/.test(l));
++    assert.ok(lines.length >= 1, `${id} has a key`);
++    for (const m of src.matchAll(/dfo\.onKey\('((?:Shift\+)?)([A-Za-z0-9]+)'/g)) {
++      assert.ok(!(m[1] === '' && taken.has(m[2])), `${id}: ${m[2]} is a gameplay binding of the game`);
++      const spec = m[1] + m[2];
++      assert.ok(!seen.has(spec), `${id} and ${seen.get(spec)} both bind ${spec}`);
++      seen.set(spec, id);
++    }
++    const handlers = src.split(/dfo\.onKey\(/).slice(1).map((s) => s.slice(0, 220));
++    assert.ok(handlers.every((s) => /playing\(\)|hudSeen/.test(s)), `${id}: a key works in a menu`);
++  }
++  assert.ok(seen.size >= 7, 'every module key is accounted for');
++});
++
++test('MODS1: A MARK SHUT IN A BUILDING - the trail leads to the nearest reachable door the street hands over, and to the nearest cell where it hands none', async () => {
++  const { createRouter, planToMark } = await import('../modules/guide-trail/src/route.js');
++  const box = { x0: 20, x1: 30, z0: -5, z1: 5 };
++  const world = {
++    floor: () => 0,
++    ray(o, d, max) {   // the building is a solid box: a ray that meets it is stopped
++      let t0 = 0, t1 = max;
++      for (const [p, v, lo, hi] of [[o[0], d[0], box.x0, box.x1], [o[2], d[2], box.z0, box.z1]]) {
++        if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
++        const a = (lo - p) / v, b = (hi - p) / v;
++        t0 = Math.max(t0, Math.min(a, b)); t1 = Math.min(t1, Math.max(a, b));
++      }
++      return t0 <= t1 ? t0 : null;
++    },
++    doors: () => [[19.6, 0, -3], [19.6, 0, 3]],
++  };
++  const near = (p, q, r) => Math.hypot(p[0] - q[0], p[2] - q[1]) < r;
++  const withDoor = planToMark(createRouter(world, STILL), world, [0, 0, 0], [25, 0]);
++  assert.ok(withDoor.door && withDoor.reached, 'a door was chosen and reached');
++  assert.ok(near(withDoor.pts.at(-1), [19.6, 3], 2.2) || near(withDoor.pts.at(-1), [19.6, -3], 2.2), 'the way ends at the door');
++  const noDoors = planToMark(createRouter({ ...world, doors: undefined }, STILL), { ...world, doors: undefined }, [0, 0, 0], [25, 0]);
++  assert.equal(noDoors.door, undefined);
++  assert.equal(noDoors.reached, false, 'with no doors it is the nearest it can get');
++  assert.ok(near(noDoors.pts.at(-1), [25, 0], 6.6), "which is a wall of the building, nearest the goal");
++  const open = planToMark(createRouter(world, STILL), world, [0, 0, 0], [10, 0]);
++  assert.equal(open.door, undefined, 'a goal in the open is led to as it is');
++});
+-- 
+2.53.0.windows.1
+
