@@ -430,7 +430,7 @@
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
     box.setAttribute("aria-label", w.title());
-    box.style.cssText = 'position:fixed;left:12px;top:64px;z-index:2147483001;width:300px;max-width:calc(100vw - 24px);max-height:calc(100vh - 180px);overflow:auto;padding:8px 10px;font:13px/1.3 "Pixelify Sans",Georgia,serif;color:#f2e6c4;background:rgba(10,12,17,0.86);border:1px solid #c9962c;box-shadow:0 0 10px #000';
+    box.style.cssText = 'position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:2147483001;width:300px;max-width:calc(100vw - 24px);max-height:calc(100vh - 180px);overflow:auto;padding:8px 10px;font:13px/1.3 "Pixelify Sans",Georgia,serif;color:#f2e6c4;background:rgba(10,12,17,0.86);border:1px solid #c9962c;box-shadow:0 0 10px #000';
     const title = document.createElement("h2");
     title.textContent = w.title();
     title.style.cssText = "margin:0 0 2px;font-size:15px;color:#c9962c";

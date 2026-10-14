@@ -1,7 +1,7 @@
 From 1d243fe3cefb382609502d2f1c7a065ba39d9664 Mon Sep 17 00:00:00 2001
 From: BearddOddity <beardedoddity@gmail.com>
 Date: Wed, 14 Oct 2026 07:00:11 -0500
-Subject: [PATCH 07/11] Beardd's Wayfarer: floors, region-map waypoints, quest
+Subject: [PATCH 07/12] Beardd's Wayfarer: floors, region-map waypoints, quest
  people, player keys, the compass in the trail's colour
 
 The guide trail leads between a dungeon's floors over the way the player's map knows (world.known(): the walked cells,
