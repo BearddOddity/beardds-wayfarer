@@ -38,6 +38,7 @@ wants that person (for example, you must come back to them later). Check the jou
 | "needs interface 2; this game has 1" | The module is newer than your game. Update the game. |
 | "the folder is '...' but the manifest's id is '...'" | The folder name must match the module's id: `waypoint`, `guide-trail`, `pins`. |
 | "module.json: not found" | The folder is missing its files. Run `Install.cmd` again. |
+| A module from someone else has the same folder name | Only one module can use a folder name. `Uninstall.cmd` leaves another author's folder alone; move it aside by hand if you want the Wayfarer's. |
 | "switched off" | You turned it off. Turn its switch on. |
 | "failed 25 times" (in the game's console) | The module kept failing and switched itself off for this session. Restart the game; if it repeats, report it. |
 

@@ -32,7 +32,7 @@ It runs only in your own game client. Nothing is sent to the server, and every k
    **Quest guidance** to **Exact**.
 3. Play. Track a quest, or right-click a map to set a destination.
 
-The full guide is in [docs/players/using.md](docs/players/using.md).
+The full guide is in [docs/players/using.md](docs/players/using.md). To remove the mod, double-click **`Uninstall.cmd`**.
 
 ## Keys
 
@@ -57,7 +57,7 @@ Keys work only while you are playing (never in a menu, a dialog or a map). Press
 | Folder | What it is | Who it is for |
 | --- | --- | --- |
 | [`Mods/`](Mods) | **The mod itself**: three module folders, ready to install | Players |
-| `Install.cmd`, [`tools/install.ps1`](tools/install.ps1) | Installs or uninstalls the mod | Players |
+| `Install.cmd`, `Uninstall.cmd` | Install the mod (run again to update), and take it out cleanly ([`tools/`](tools)) | Players |
 | [`docs/`](docs/index.md) | All the documentation. **Start at [docs/index.md](docs/index.md).** | Everyone |
 | [`game-integration/`](game-integration/README.md) | The Mod API for the game, as patches, with instructions for putting it into the game | Developers |
 | [`dev-review/`](dev-review/README.md) | A loader that runs the mod on today's released game. It uses the game's debug switch, so it is kept apart from the mod | Developers, testers |

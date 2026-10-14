@@ -28,13 +28,14 @@ Start here. Each page is short and stands on its own.
 ```
 Beardd's Wayfarer/
   README.md               the front page
-  Install.cmd             installs the mod (tools/install.ps1)
+  Install.cmd             installs or updates the mod (tools/install.ps1)
+  Uninstall.cmd           takes it out cleanly, after asking (tools/uninstall.ps1)
   Mods/                   THE MOD: waypoint/, guide-trail/, pins/ - copied into the game's Mods folder
   source/                 the modules' source (guide-trail is several files, bundled into its module.js)
   docs/                   this documentation
   game-integration/       the Mod API for the game: patches/ and how to apply and ship them
   dev-review/             the loader for today's released game (uses the game's debug switch; kept apart)
-  tools/                  install.ps1, sync.mjs
+  tools/                  install.ps1, uninstall.ps1, sync.mjs
 ```
 
 ## Words used in these pages

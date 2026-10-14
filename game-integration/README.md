@@ -80,7 +80,7 @@ A point-by-point list is in [docs/developers/review-checklist.md](../docs/develo
 ## 4. Ship it
 
 1. Merge the branch (or the parts you want) into `main` and release the client as usual. Nothing is needed on the relay.
-2. Players install modules into `%APPDATA%\Daggerfall JavaScript\Mods\` (the Wayfarer's `Install.cmd` does it).
+2. Players install modules into `%APPDATA%\Daggerfall JavaScript\Mods\` (the Wayfarer's `Install.cmd` does it, and `Uninstall.cmd` takes them out).
 3. Your choices:
 
 | Choice | How |

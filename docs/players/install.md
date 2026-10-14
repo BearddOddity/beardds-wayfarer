@@ -58,9 +58,22 @@ and keys are kept: the game stores them, not the module folders.
 
 ## Uninstall
 
-- **Switch a module off:** Settings > Mods & files > Modules, and turn its switch off. A module that is off runs no code at all.
-- **Remove the mod:** run `Install.cmd -Uninstall` from a command prompt, or delete the three folders from the `Mods` folder.
-  Your saves are not touched.
+**The easy way:** double-click **`Uninstall.cmd`** in the mod's top folder. It lists the folders it will remove and asks
+before removing them. Restart the game afterwards if it was running.
+
+What it removes, and what it leaves:
+
+| Removed | Never touched |
+| --- | --- |
+| the `waypoint`, `guide-trail` and `pins` folders in your `Mods` folder - only when each really is this mod's (its `module.json` says "Beardd's Wayfarer") | any other module, even one in a folder with the same name |
+| the `Mods` folder itself, only if nothing else is left in it | your saves, your character, the game's own files |
+
+The looks and keys you chose are kept in the game's own settings, so a later reinstall picks them up again.
+`Uninstall.cmd -Yes` skips the question (for scripts).
+
+**By hand:** delete the three folders from `%APPDATA%\Daggerfall JavaScript\Mods\`.
+
+**Just switch it off:** Settings > Mods & files > Modules, and turn a module's switch off. A module that is off runs no code.
 
 ## Do not edit the installed files
 
