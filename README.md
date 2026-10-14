@@ -41,9 +41,9 @@ Keys work only while you are playing (never in a menu, a dialog or a map). Press
 | Key | Does |
 | --- | --- |
 | **F7** | Waypoint on / off |
-| **Shift+F3** | Waypoint look: gold, ivory, cyan, magenta, large |
+| **Shift+F3** | Waypoint look: gold, ivory, cyan, magenta, large (the compass's diamond takes the same colour) |
 | **F4** | Guide trail on / off |
-| **Shift+F4** | Trail look: gold, ivory, cyan, magenta, large (the compass's mark takes the trail's colour) |
+| **Shift+F4** | Trail look: gold, ivory, cyan, magenta, large |
 | **F2** | Drop a pin where you look (up to 8) |
 | **F3** | Follow the next place: the quest, the exit, your pins and destinations, your region-map waypoints |
 | **Shift+F2** | Remove the place you are following |

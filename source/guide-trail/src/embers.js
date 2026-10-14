@@ -35,11 +35,11 @@ export const GUIDE_EMBER = Object.freeze([1, 0.55, 0.18]);
 /** THE LOOKS (Shift+F4 cycles them): the two golds a spark is drawn between, the floor pool's colour, a size and a strength multiplier.
  *  Gold is the game's own; the others are for contrast and colour-blindness (a cyan or a magenta stream reads where gold and snow do not). */
 export const GUIDE_STYLES = Object.freeze({
-  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1, mark: null }),
-  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1, mark: '#f2e6c4' }),
-  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1, mark: '#38d0e8' }),
-  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1, mark: '#e060d0' }),
-  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3, mark: null }),
+  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1 }),
+  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1 }),
+  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1 }),
+  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1 }),
+  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3 }),
 });
 export const GUIDE_STYLE_ORDER = Object.freeze(Object.keys(GUIDE_STYLES));
 

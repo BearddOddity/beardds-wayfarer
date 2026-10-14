@@ -259,7 +259,7 @@
             targets.delete(manifest.id);
             if (Array.isArray(xz) && Number.isFinite(xz[0]) && Number.isFinite(xz[1])) targets.set(manifest.id, { xz: Number.isFinite(xz[2]) ? [xz[0], xz[1], xz[2]] : [xz[0], xz[1]], kind: /^[a-z]{1,16}$/.test(String(kind)) ? String(kind) : "place" });
           },
-          /** Colour the compass's mark '#rrggbb' (a trail's look, so the two read as one); null (or anything else) gives it the game's own colour back. */
+          /** Colour the compass's mark '#rrggbb' (the waypoint's diamond, so the two read as one); null (or anything else) gives it the game's own colour back. */
           markColour: (css) => {
             tints.delete(manifest.id);
             if (typeof css === "string" && /^#[0-9a-f]{6}$/i.test(css)) tints.set(manifest.id, css.toLowerCase());

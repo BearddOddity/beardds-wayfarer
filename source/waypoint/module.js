@@ -5,6 +5,9 @@
 // dungeons and buildings). Hears `questMark` and `drawFx`, and reaches nothing else. When the game hands over its world probe, the diamond stands over the
 // quest's own spot - the floor there (never below it) and a man's height up - seen in true perspective; otherwise it rides at a fixed height.
 //
+// THE COMPASS'S DIAMOND takes the diamond's own colour (the player: "the diamond icon should match the diamond compass icon"):
+// the quest's look, or the kind's colour for a pin, destination, exit or waypoint; gold, and the waypoint off, leave the game's own.
+//
 // Keys (only while the game's HUD is up; the player may change them - Shift+F1): F7 on / off, Shift+F3 cycles the look (gold, ivory, cyan, magenta, large). Settings: this module's own store (`fov` - match the game's Field of View setting, default 65 - and `height`).
 const GOLD = '#c9962c';        // the game's own quest-mark gold
 const HUD_LIVE_MS = 400;       // the HUD draws every frame while the game is played; a menu, a dialog, a map or a loading screen stops it (and the keys)
@@ -61,6 +64,9 @@ export const MARK_KINDS = Object.freeze({
   place: Object.freeze({ css: '#f2e6c4', word: 'Place' }),
 });
 
+/** The diamond's colour: the kind's, else the quest's look. Pure. @param {{ css: string }|null} kind @param {string} look */
+export const diamondColour = (kind, look) => kind?.css ?? (WAYPOINT_LOOKS[look] ?? WAYPOINT_LOOKS.gold).css;
+
 const distText = (d) => (d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d)} m`);
 
 /** How far away a spot is, and - when the player is moving - how long at their own pace: "420 m - 2 min". Pure. @param {number} d metres @param {number} mps metres a second (0 when standing) */
@@ -90,7 +96,13 @@ export default function setup(dfo) {
     lastP = p ? { x: p[0], z: p[1], t: now } : null;
     hudSeen = now;
     mark = q && p && Number.isFinite(h) ? { tx: q[0], tz: q[1], ty: Number.isFinite(q[2]) ? q[2] : null, px: p[0], pz: p[1], h, kind: MARK_KINDS[kind] ?? null } : null;   // an older host says no kind (the quest's look) and no height
+    tintCompass();
   });
+  let tint = null;   // the colour last asked of the compass's diamond
+  function tintCompass() {
+    const css = on && mark ? diamondColour(mark.kind, look) : null;
+    if (css !== tint) { tint = css; dfo.markColour?.(css === GOLD ? null : css); }   // an older host has no markColour
+  }
   const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
 
   let at = null;   // the diamond on the screen by the world's own perspective: { x, y, t, behind } or null
@@ -148,7 +160,7 @@ export default function setup(dfo) {
     if (!playing() || !on || !mark) { wp.style.display = 'none'; return; }
     const w = innerWidth, h = innerHeight;
     const L = WAYPOINT_LOOKS[look];
-    wp.style.setProperty('--c', mark.kind?.css ?? L.css);
+    wp.style.setProperty('--c', diamondColour(mark.kind, look));
     wp.classList.toggle('big', L.big);
     wp.style.display = '';
     const dist = distLabel(Math.hypot(mark.tx - mark.px, mark.tz - mark.pz), pace);
@@ -189,10 +201,10 @@ export default function setup(dfo) {
   requestAnimationFrame(frame);
 
   // keys, only while the game's HUD is up: in a menu, a dialog or a map F7 and F3 mean other things
-  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); dfo.say(on ? 'Quest waypoint on' : 'Quest waypoint off'); }, 'Waypoint on / off');
+  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? 'Quest waypoint on' : 'Quest waypoint off'); }, 'Waypoint on / off');
   dfo.onKey('Shift+F3', () => {
     if (!playing()) return;
     look = LOOK_ORDER[(LOOK_ORDER.indexOf(look) + 1) % LOOK_ORDER.length];
-    dfo.store.set('look', look); dfo.say(`Waypoint look: ${look}`);
+    dfo.store.set('look', look); tintCompass(); dfo.say(`Waypoint look: ${look}`);
   }, 'Waypoint look');
 }

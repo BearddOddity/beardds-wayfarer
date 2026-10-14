@@ -28,6 +28,9 @@ a dialog, a map or a loading screen stops it.
   player's, only where the floor is known.
 - **Colours:** the quest takes the player's look (`WAYPOINT_LOOKS`: gold, ivory, cyan, magenta, large). Any other kind takes
   its own Okabe-Ito colour and word (`MARK_KINDS`: pin, destination, exit, waypoint, place).
+- **The compass's diamond:** on each `questMark` it asks `dfo.markColour(diamondColour(kind, look))`, only when the colour
+  changes: the compass's own diamond and the waypoint's are one colour. Gold, nothing marked, or the waypoint off: `null`, the
+  game's own gold.
 - **Store:** `on`, `look`, and two fallbacks for a host with no camera: `fov` (65) and `height` (0.42 of the screen).
 
 ## guide-trail
@@ -36,7 +39,7 @@ Four files in `src/`, bundled by `scripts/buildModules.mjs`:
 
 | File | Does |
 | --- | --- |
-| `setup.js` | the module: hears the mark and the frame, plans, draws, keys, the compass colour |
+| `setup.js` | the module: hears the mark and the frame, plans, draws, keys |
 | `route.js` | the router (pure of the game: tests hand it a probe) |
 | `embers.js` | the ember field: a pure function of a path and the clock; the looks (`GUIDE_STYLES`) |
 | `fx.js` | draws the embers through the renderer's particle path (no shader or buffer of its own) |
@@ -69,10 +72,6 @@ Four files in `src/`, bundled by `scripts/buildModules.mjs`:
 - One particle effect for each, created on first use, written into one preallocated buffer; `dispose` frees both and the
   glow texture.
 
-### The compass colour
-
-While the trail is on, `setup.js` calls `dfo.markColour(GUIDE_STYLES[look].mark)`: null for gold and large (the game's own
-gold stays), the look's colour for ivory, cyan and magenta. Off, it gives the colour back (`null`).
 
 ## pins
 

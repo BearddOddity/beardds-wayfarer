@@ -10,7 +10,7 @@
 // Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F4 means something else); the player may
 // change them (Shift+F1, the game's keys panel):
 //   F4        trail on / off
-//   Shift+F4  cycles the look: gold, ivory, cyan, magenta, large - the compass's mark takes the trail's colour while it is on
+//   Shift+F4  cycles the look: gold, ivory, cyan, magenta, large
 import { smoothPath, GUIDE_STYLES, GUIDE_STYLE_ORDER } from './embers.js';
 import { createGuideTrailFx } from './fx.js';
 import { createRouter, planToMark, planKnown } from './route.js';
@@ -26,9 +26,6 @@ export default function setup(dfo) {
   let on = dfo.store.get('on', true);
   let look = dfo.store.get('look', 'gold');
   if (!GUIDE_STYLES[look]) look = 'gold';
-  // the compass's mark in the trail's colour while the trail is on, so the two read as one (gold keeps the game's own gold)
-  const tintCompass = () => dfo.markColour?.(on ? GUIDE_STYLES[look].mark : null);
-  tintCompass();
 
   let mark = null;       // { q: [x, z], at: ms }
   let hudSeen = -1e9;    // when the HUD last drew
@@ -79,11 +76,11 @@ export default function setup(dfo) {
     fx.draw(wayToMark(feet, world), feet, { style: GUIDE_STYLES[look] });
   });
 
-  dfo.onKey('F4', (e) => { if (!playing()) return; e.preventDefault?.(); on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? 'Guide trail on' : 'Guide trail off'); }, 'Guide trail on / off');
+  dfo.onKey('F4', (e) => { if (!playing()) return; e.preventDefault?.(); on = !on; dfo.store.set('on', on); dfo.say(on ? 'Guide trail on' : 'Guide trail off'); }, 'Guide trail on / off');
   dfo.onKey('Shift+F4', (e) => {
     if (!playing()) return;
     e.preventDefault?.();
     look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
-    dfo.store.set('look', look); tintCompass(); dfo.say(`Guide trail look: ${look}`);
+    dfo.store.set('look', look); dfo.say(`Guide trail look: ${look}`);
   }, 'Guide trail look');
 }

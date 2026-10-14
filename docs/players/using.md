@@ -28,6 +28,10 @@ stands over it and the trail leads to it. There is only **one** trail at a time.
 
 **F7** turns the waypoint on or off. **Shift+F3** changes its look: gold, ivory, cyan, magenta, or large.
 
+**The diamond on the compass strip takes the waypoint diamond's colour**, so the two read as one: the look you chose for the
+quest, or the place's own colour (a pin's sky blue, the exit's teal-green...). Gold keeps the game's own gold, and with the
+waypoint off the compass is the game's own again.
+
 ## The guide trail
 
 - Embers drift along the way to the place. The way goes **round walls and buildings**, **up hills, rubble and stairs**, and
@@ -37,8 +41,7 @@ stands over it and the trail leads to it. There is only **one** trail at a time.
 - When it cannot reach the place yet, it leads as close as it can.
 - Ember pools on the floor stay visible on snow and pale stone.
 
-**F4** turns the trail on or off. **Shift+F4** changes its look: gold, ivory, cyan, magenta, or large. **The diamond on the
-compass strip takes the trail's colour** while the trail is on, so the two read as one (gold keeps the game's own gold).
+**F4** turns the trail on or off. **Shift+F4** changes its look: gold, ivory, cyan, magenta, or large.
 
 ## In a dungeon
 
@@ -101,9 +104,9 @@ Press **Shift+F1** (or **Settings > Mods & files > Modules > Change module keys*
 | Key | Does |
 | --- | --- |
 | F7 | Waypoint on / off |
-| Shift+F3 | Waypoint look |
+| Shift+F3 | Waypoint look (and the compass diamond's colour) |
 | F4 | Guide trail on / off |
-| Shift+F4 | Trail look (and the compass mark's colour) |
+| Shift+F4 | Trail look |
 | F2 | Drop a pin where you look |
 | F3 | Follow the next place |
 | Shift+F2 | Remove the followed place (a region waypoint: put it aside) |

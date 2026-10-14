@@ -35,11 +35,10 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 
 - [ ] **waypoint:** projected with the renderer's own matrices, 2.4 m over the mark's floor; edge arrow along the view-space
       direction; dim behind a wall; "420 m - 2 min" while moving; "above"/"below" only where the floor is known; kind colours
-      with words; hides when the HUD stops.
+      with words; the compass's own diamond takes the same colour (gold and off: the game's own); hides when the HUD stops.
 - [ ] **guide-trail:** leads only to the compass's mark. Router: 1 m grid, slope 1:1 with the middle checked, three waist rays,
       no corner cutting, 6 ms budget, door routing when the goal is shut in. Known way: walked cells and steps only, stacked
-      climbs, nearest reachable cell when not joined. Pools stay visible on bright floors. The compass's mark takes the
-      trail's colour while it is on.
+      climbs, nearest reachable cell when not joined. Pools stay visible on bright floors. It colours nothing on the compass.
 - [ ] **pins:** 8 pins at most; F3 order quest, exit, pins, waypoints; reach 3 m (10 m for a waypoint) on the place's floor; a
       150 m jump clears places except the open world's tile step and a teleporter's landing; the exit only once the player
       pins it, on the floor they came in on; a dungeon map's pin keeps its own spot and floor.
@@ -74,7 +73,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 ## 7. Not verified live yet
 
 - [ ] After speaking with the agent, the **building's mark goes too** (fixed 2026-10-14, tests green).
-- [ ] The **compass's mark in the trail's colour** (added 2026-10-14, tests green).
+- [ ] The **compass's diamond in the waypoint diamond's colour** (hotfix 1.1.1, 2026-10-14, tests green).
 - [ ] The quest's town **highlighted on the region map** before the player has found it.
 - [ ] The exit **through a teleporter**.
 - [ ] The keys panel over the live game: the pointer is released, and Escape closes the panel without opening the game's menu.

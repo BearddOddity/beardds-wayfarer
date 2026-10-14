@@ -18,11 +18,11 @@ var GUIDE_SNAKE_M = 0.35;
 var GUIDE_GOLD = Object.freeze([1, 0.82, 0.38]);
 var GUIDE_EMBER = Object.freeze([1, 0.55, 0.18]);
 var GUIDE_STYLES = Object.freeze({
-  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1, mark: null }),
-  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1, mark: "#f2e6c4" }),
-  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1, mark: "#38d0e8" }),
-  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1, mark: "#e060d0" }),
-  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3, mark: null })
+  gold: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1, alpha: 1 }),
+  ivory: Object.freeze({ gold: Object.freeze([1, 0.97, 0.85]), ember: Object.freeze([1, 0.9, 0.65]), pool: Object.freeze([0.85, 0.7, 0.35]), size: 1, alpha: 1 }),
+  cyan: Object.freeze({ gold: Object.freeze([0.55, 0.95, 1]), ember: Object.freeze([0.2, 0.75, 1]), pool: Object.freeze([0.05, 0.5, 0.9]), size: 1, alpha: 1 }),
+  magenta: Object.freeze({ gold: Object.freeze([1, 0.6, 0.95]), ember: Object.freeze([0.9, 0.25, 0.85]), pool: Object.freeze([0.75, 0.1, 0.7]), size: 1, alpha: 1 }),
+  large: Object.freeze({ gold: GUIDE_GOLD, ember: GUIDE_EMBER, pool: Object.freeze([1, 0.6, 0.12]), size: 1.7, alpha: 1.3 })
 });
 var GUIDE_STYLE_ORDER = Object.freeze(Object.keys(GUIDE_STYLES));
 var TAU = Math.PI * 2;
@@ -709,8 +709,6 @@ function setup(dfo) {
   let on = dfo.store.get("on", true);
   let look = dfo.store.get("look", "gold");
   if (!GUIDE_STYLES[look]) look = "gold";
-  const tintCompass = () => dfo.markColour?.(on ? GUIDE_STYLES[look].mark : null);
-  tintCompass();
   let mark = null;
   let hudSeen = -1e9;
   dfo.on("questMark", (q) => {
@@ -776,7 +774,6 @@ function setup(dfo) {
     e.preventDefault?.();
     on = !on;
     dfo.store.set("on", on);
-    tintCompass();
     dfo.say(on ? "Guide trail on" : "Guide trail off");
   }, "Guide trail on / off");
   dfo.onKey("Shift+F4", (e) => {
@@ -784,7 +781,6 @@ function setup(dfo) {
     e.preventDefault?.();
     look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
     dfo.store.set("look", look);
-    tintCompass();
     dfo.say(`Guide trail look: ${look}`);
   }, "Guide trail look");
 }
