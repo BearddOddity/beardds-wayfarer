@@ -20,7 +20,7 @@ Start here. Each page is short and stands on its own.
 | [The Mod API](developers/mod-api.md) | write a module: the manifest, the events, the handle, the world probe |
 | [The modules](developers/modules.md) | understand how the waypoint, the guide trail and pins work inside |
 | [The dev-review loader](../dev-review/README.md) | run the mod on today's released game, and understand its hooks and its risks |
-| [Maintaining](developers/maintaining.md) | change a module, run the tests, sync this repository, check a game update |
+| [Maintaining](developers/maintaining.md) | change the mod, test it, release a new version - before and after the review; change the Mod API |
 | [Review checklist](developers/review-checklist.md) | review the work point by point, and see what is verified live and what is not |
 
 ## The repository at a glance
@@ -30,12 +30,15 @@ Beardd's Wayfarer/
   README.md               the front page
   Install.cmd             installs or updates the mod (tools/install.ps1)
   Uninstall.cmd           takes it out cleanly, after asking (tools/uninstall.ps1)
-  Mods/                   THE MOD: waypoint/, guide-trail/, pins/ - copied into the game's Mods folder
-  source/                 the modules' source (guide-trail is several files, bundled into its module.js)
+  CHANGELOG.md            what changed in each release
+  package.json            npm test, npm run build
+  Mods/                   THE MOD, built: waypoint/, guide-trail/, pins/ - copied into the game's Mods folder
+  source/                 THE MOD'S SOURCE - edit here (guide-trail is several files, bundled into its module.js)
+  test/                   the mod's tests
   docs/                   this documentation
-  game-integration/       the Mod API for the game: patches/ and how to apply and ship them
+  game-integration/       the Mod API for the game: one patch, how to apply and ship it, the mod's words for translators
   dev-review/             the loader for today's released game (uses the game's debug switch; kept apart)
-  tools/                  install.ps1, uninstall.ps1, sync.mjs
+  tools/                  install.ps1, uninstall.ps1, build.mjs, sync.mjs
 ```
 
 ## Words used in these pages

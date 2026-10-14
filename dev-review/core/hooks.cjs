@@ -8,7 +8,7 @@
 //     core/core.js), or hand the core something to read (the world probe's extras, the map sheets' destination methods);
 //     the game's own logic is unchanged.
 //   - QUEST-GUIDANCE hooks (questMark:person, :dealt, :dealtPeople, :seek, :seekMap) DO change what the game's quest
-//     guidance marks: they bring the game source's own fixes on the mod-modules branch (ui/questLens.js personSiteOf,
+//     guidance marks: they bring the game source's own fixes in the Mod API patch (game-integration/) (ui/questLens.js personSiteOf,
 //     systems/questGuidance.js personDealtWith, ui/questMarks.js `seek`) to the released client. All are optional.
 //
 // `optional: true`: where a release moves it, the hook is skipped and no module is switched off (it costs its extra only).
@@ -141,7 +141,7 @@ module.exports = {
   },
 
   // EVENT mapPick(sheet, dxMetres, dzMetres, quest) - a right click on the local map sets a destination. The game's own source
-  // (mod-modules) does this in ui/heldMap.js _destinationContext and the sheets' destinationAt; the released game has neither, so
+  // (the Mod API patch) does this in ui/heldMap.js _destinationContext and the sheets' destinationAt; the released game has neither, so
   // four patches give it the same: each sheet gets the destination methods (built by the core, over the sheet's own closures, read
   // off its code), the map window's right press asks the core when the sheet does not take it, and the window's paint asks the core
   // to stand the flag. A patch that is one of several for an event names it in `event`; the event is hooked only when all are in.

@@ -34,7 +34,7 @@ a dialog, a map or a loading screen stops it.
 
 ## guide-trail
 
-Four files in `src/`, bundled by `scripts/buildModules.mjs`:
+Four files in `src/`, bundled by `tools/build.mjs`:
 
 | File | Does |
 | --- | --- |

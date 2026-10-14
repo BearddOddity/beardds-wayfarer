@@ -59,10 +59,17 @@ Keys work only while you are playing (never in a menu, a dialog or a map). Press
 | [`Mods/`](Mods) | **The mod itself**: three module folders, ready to install | Players |
 | `Install.cmd`, `Uninstall.cmd` | Install the mod (run again to update), and take it out cleanly ([`tools/`](tools)) | Players |
 | [`docs/`](docs/index.md) | All the documentation. **Start at [docs/index.md](docs/index.md).** | Everyone |
-| [`game-integration/`](game-integration/README.md) | The Mod API for the game, as patches, with instructions for putting it into the game | Developers |
+| [`game-integration/`](game-integration/README.md) | The Mod API for the game, as one patch, with instructions for putting it into the game | Developers |
 | [`dev-review/`](dev-review/README.md) | A loader that runs the mod on today's released game. It uses the game's debug switch, so it is kept apart from the mod | Developers, testers |
-| [`source/`](source) | The modules' own source code | Developers |
-| [`tools/sync.mjs`](tools/sync.mjs) | Refreshes this repository from the game source | Maintainers |
+| [`source/`](source), [`test/`](test) | The mod's source and its tests (`npm test`, `npm run build`) | Developers |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release | Everyone |
+| [`tools/`](tools) | `install.ps1`, `uninstall.ps1`, `build.mjs` (source to `Mods/`), `sync.mjs` (the Mod API patch from the game source) | Maintainers |
+
+## Updates
+
+The mod lives here, not inside the game. The game offers a small, stable interface (the Mod API); the mod is written against
+it, so **new versions of the mod need no game update and no new review**. Get a new release and run `Install.cmd` again: your
+settings and keys stay. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Safety
 

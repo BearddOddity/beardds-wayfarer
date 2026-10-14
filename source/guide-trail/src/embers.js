@@ -1,5 +1,5 @@
 // The guide trail's embers: pure code, no game imports - a module is one file the page imports from a blob, so what it needs is
-// bundled in (scripts/buildModules.mjs). The embers are a function of a path and the clock; nothing is simulated.
+// bundled in (tools/build.mjs). The embers are a function of a path and the clock; nothing is simulated.
 // (The same code the game's own Guide trail feature carries, systems/guideTrail.js, taken without its game-state switch.)
 /** How far ahead of the player the stream shows, along the path (m). */
 export const GUIDE_AHEAD_M = 30;

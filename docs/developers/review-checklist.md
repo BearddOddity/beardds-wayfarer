@@ -23,6 +23,8 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 - [ ] **Words:** `dfo.t(key, en, args)` reads the game's `t`; English where there is no row, or no text core. Every word the three modules show goes through it (a test reads them).
 - [ ] **Client-side only:** `modApi.js` imports nothing of `net/`; no wire or relay change.
 
+- [ ] **The mod is not in the patch:** no `modules/` folder in the game; the mod's tests run in this repository (`npm test`).
+
 ## 2. Keys
 
 - [ ] Module keys: F2, F3, F4, F7 and Shift with F2, F3, F4. None is a gameplay default (`src/systems/inputActions.js`);

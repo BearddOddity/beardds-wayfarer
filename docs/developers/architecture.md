@@ -29,7 +29,7 @@ released client the same API from outside.
 | Part | Where | What it is |
 | --- | --- | --- |
 | **The Mod API** | the game's source: `src/mods/` (patches in `game-integration/`) | the bus, the host that loads modules, the keys panel, the Modules card, and the event seams in the game's code |
-| **The mod** | `Mods/` (built), `source/` (source) | three module folders: `waypoint`, `guide-trail`, `pins` |
+| **The mod** | this repository: `source/` (source), `Mods/` (built), `test/` | three module folders: `waypoint`, `guide-trail`, `pins` - owned, tested and released here, never inside the game |
 | **The dev-review loader** | `dev-review/` | runs the game's own Mod API on today's released client, by patching the served code in memory |
 
 The modules are the same files in both cases. A module cannot tell whether the game or the loader hosts it.
@@ -76,9 +76,10 @@ The modules are the same files in both cases. A module cannot tell whether the g
 | `mapPick` seam | `src/ui/heldMap.js`, `src/ui/townSheet.js`, `src/ui/automapSheet.js` |
 | `quests` seam | `src/scenes/questBridge.js` |
 | Quest guidance that follows the journal | `src/ui/questLens.js` (`personSiteOf`, `seek`), `src/systems/questGuidance.js` (`personDealtWith`), `src/ui/questMarks.js` |
-| Building and installing modules | `scripts/buildModules.mjs` |
 | The specification | `bible/06-Systems/Mod-API.md` |
 | Tests | `test/mods1_api.test.js` and the quest guidance tests `test/guide1_questLens.test.js`, `test/guide5_marks.test.js`, `test/guide8_questguidance.test.js` |
+
+The mod's own code is not in the game: `source/` in this repository, built by `tools/build.mjs`, tested by `test/wayfarer.test.js`.
 
 ## Two kinds of change in the game patches
 

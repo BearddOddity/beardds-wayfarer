@@ -101,9 +101,8 @@ Frozen, and exactly these members. There is no door to the network, the disk or 
 - A module is the player's own code with the page's reach. The API promises the **shape** of a module's contact with the
   game, not a sandbox: install only what you trust.
 
-## Building and installing (game source)
+## Building and installing
 
-```
-node scripts/buildModules.mjs                    build the bundled modules (a module with src/setup.js)
-node scripts/buildModules.mjs --install <dir>    ...and copy them into <dir>/Mods, with each entry's sha256
-```
+A module is built by its author and installed by copying its folder into `<user data>/Mods/`. This repository's
+`tools/build.mjs` is a small example: it bundles a module written as several files, and writes each entry's `sha256` into its
+`module.json`. `Install.cmd` copies the result into the game's `Mods` folder.
