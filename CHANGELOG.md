@@ -2,12 +2,14 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
-## Unreleased
+## 1.3.0 - 2026-10-17
 
+- **Play Wayfarer.cmd** starts the game with the mod. It does not install anything: run Install.cmd first, and again after each update.
 - The pin key is **F1** (it was F2). DFO Online 0.1.9381 gives F2 to the saddle panel. Shift+F1 still changes any key.
-- The loader (dev-review) matches DFO Online 0.1.9381: the waypoint, the guide trail and the pins are all hooked again.
-- The Mod API patch (game-integration) is rebased onto the game source's current main.
+- The loader matches DFO Online 0.1.9381: the waypoint, the guide trail and the pins are all hooked again.
 - Not restored on 0.1.9381: the outdoor trail to region-map waypoints, and the quest-guidance fixes. The modules run without them.
+- Developers: the loader folder is now `developer/` (it was `dev-review/`). It holds the loader log, the self-check and the update report.
+- The Mod API patch (game-integration) is rebased onto the game source's current main.
 
 ## 1.2.1 - 2026-10-14
 

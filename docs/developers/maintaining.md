@@ -25,7 +25,7 @@ Then, for each change:
    (the guide trail is several files, bundled into its `module.js` by the build).
 2. Test it: `npm test` (`test/wayfarer.test.js`, every module driven through a fake handle and world probe).
 3. Build it: `npm run build`. This writes `Mods/` (each entry's sha256 in its `module.json`), and bundles the guide trail.
-4. Install it into your own game: `Install.cmd`. Play-test it (with the native game, or the [dev-review loader](../../dev-review/README.md)
+4. Install it into your own game: `Install.cmd`. Play-test it (with the native game, or the [developer loader](../../developer/README.md)
    while the released game lacks the API).
 5. Commit `source/`, `Mods/` and the test together.
 
@@ -57,7 +57,7 @@ Only when the mod needs something the game does not offer yet (a new event, a ne
 
 1. In the game source clone (`../daggerfall-js-source`, branch `mod-api`), add it the append-only way: a new event with its
    `since`, `MOD_API_VERSION` raised, the seam announcing it, a test pinning it, `bible/06-Systems/Mod-API.md` updated.
-2. Commit there, then refresh this repository's copy of it: `node tools/sync.mjs` (the patch, and the dev-review loader's host).
+2. Commit there, then refresh this repository's copy of it: `node tools/sync.mjs` (the patch, and the developer loader's host).
 3. **Before the merge:** the patch in `game-integration/` carries it. **After the merge:** open a pull request to the game with
    the new commit; the mod can use the new member only once a game release has it (`api: 2` in `module.json` keeps it off
    older games, with the reason shown).
@@ -72,25 +72,25 @@ The game's own rules apply there: test counts in `bible/09-Testing/Testing.md`, 
 words through `t()` in every locale, mutant records (`node tools/mutate.mjs tools/mutants/guide8.json`). On a clean Windows
 checkout about 36 tests fail for path reasons unrelated to this work: compare against the parent commit.
 
-## After a game update (dev-review loader only)
+## After a game update (developer loader only)
 
-Run **`dev-review\Check hooks.cmd`**:
+Run **`developer\Check hooks (developers).cmd`**:
 
 - `ok` - fine.
 - `note ... (optional)` - an optional hook moved: its extra is lost (region waypoints, quest people), no module is switched off.
 - `FAIL` - a required hook moved: the modules that listen to that event are switched off and named on screen.
 
 To fix a moved hook, find the new shape of that code in the game's `resources\app.asar\dist\assets\*.js` and update its `find`
-(and `needle`) in `dev-review/core/hooks.cjs`. Anchor on property names and strings, never minified variable names. Once the
+(and `needle`) in `developer/core/hooks.cjs`. Anchor on property names and strings, never minified variable names. Once the
 game ships the Mod API, the loader and this check are no longer needed.
 
 ## Folders the tools expect
 
 ```
 <folder>/
-  daggerfall-js-source/      the game source (only for API changes and the dev-review loader's host)
+  daggerfall-js-source/      the game source (only for API changes and the developer loader's host)
   <this repository>/
-  Daggerfall Online/         the installed game (for the dev-review loader and its check)
+  Daggerfall Online/         the installed game (for the developer loader and its check)
 ```
 
 Each tool takes a flag for another place: `--source <folder>` (sync.mjs, build-core.mjs), `--game <folder>` or the `DFO_GAME`

@@ -8,7 +8,17 @@
 
 > **The Mod API is not in the released game yet.** The DFO Online developers are reviewing it
 > ([game-integration](../../game-integration/README.md)). Until it ships, the mod runs on the released game only through the
-> [dev-review loader](../../dev-review/README.md), which is meant for developers and testers.
+> [developer loader](../../developer/README.md), which is meant for developers and testers.
+
+## Run it now (until the Mod API ships)
+
+Double-click **`Play Wayfarer.cmd`** in the mod's top folder, after you have run **`Install.cmd`**. It starts DFO Online with the mod.
+Press PLAY in the game's launcher as usual. It does not install or update anything.
+
+It needs the game folder beside the mod's folder (`Daggerfall Online`). If the game is somewhere else, set the
+`DFO_GAME` environment variable to the game's folder first.
+
+The developers' version (`developer`, file `Play with the loader (developers).cmd`) is for testers and needs Node.js 22 or newer.
 
 ## Install
 

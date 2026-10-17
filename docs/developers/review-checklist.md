@@ -54,7 +54,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 - [ ] `questLens.js` `seek` + `questMarks.js`: a town the entry names but the map lacks is ringed on the region map for the
       tracked quest only; the compass still waits.
 
-## 5. The dev-review loader
+## 5. The developer loader
 
 - [ ] `launch.mjs` starts the game with `--inspect-brk` (127.0.0.1 only), requires `loader/main.cjs` into the main process,
       resumes, and the loader closes the inspector 4 s later.
@@ -62,7 +62,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
       and plain name; hooks only for the events installed modules list.
 - [ ] `core/hooks.cjs`: every hook anchored on property names; optional hooks never switch a module off; the quest-guidance
       hooks are marked as changing game behaviour.
-- [ ] `Check hooks.cmd` passes against the current game, or names exactly what moved.
+- [ ] `Check hooks (developers).cmd` passes against the current game, or names exactly what moved.
 
 ## 6. Verified live
 
@@ -89,5 +89,5 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 - On the released client through the loader there is no door list, so the trail stops at the nearest reachable cell when the
   goal is inside a building.
 - Destinations are set on the dungeon's flat map only (the 3D map's right button turns the view). By choice.
-- Module words go through the game's text core (`dfo.t`): English until the game's catalog takes in their keys (`l10nExtract` reads `src/` only today). On the dev-review loader they are always English (the released game's text core is out of reach).
+- Module words go through the game's text core (`dfo.t`): English until the game's catalog takes in their keys (`l10nExtract` reads `src/` only today). On the developer loader they are always English (the released game's text core is out of reach).
 - No module uses the `quests` event yet. It is part of interface 1 for future modules.

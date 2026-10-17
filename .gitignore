@@ -1,4 +1,4 @@
-# the dev-review loader's run record
-dev-review/loader.log
+# the developer loader's run record
+developer/loader.log
 node_modules/
-UPDATE-REPORT*.md
+developer/UPDATE-REPORT*.md

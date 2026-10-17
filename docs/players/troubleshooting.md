@@ -49,4 +49,4 @@ Looks and keys are kept in the game's own storage. Clearing the game's data rese
 ## Reporting a problem
 
 Say what you did, what you expected, and what happened, and which game version (bottom of the launcher). A screenshot
-helps. If you use the dev-review loader, send `dev-review\loader.log` too.
+helps. If you use the developer loader, send `developer\loader.log` too.

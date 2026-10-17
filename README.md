@@ -11,7 +11,7 @@ Daggerfall's world is huge, and its quest text often gives no directions. Beardd
 It runs only in your own game client. Nothing is sent to the server, and every key can be changed.
 
 > **Status: in review with the DFO Online developers.** The mod is written for the game's **Mod API**, which is not in the
-> released game yet. Until it is, the mod runs on the released game only through the [dev-review loader](dev-review/README.md).
+> released game yet. Until it is, the mod runs on the released game only through the [developer loader](developer/README.md).
 > See [Installing](docs/players/install.md).
 
 ## Who is it for?
@@ -27,7 +27,8 @@ It runs only in your own game client. Nothing is sent to the server, and every k
 
 ## Quick start
 
-1. Install: double-click **`Install.cmd`**. It copies the three module folders into your game's `Mods` folder.
+1. Install: double-click **`Install.cmd`** (once, and again after each update). It copies the mod into your game's `Mods` folder.
+2. Play: double-click **`Play Wayfarer.cmd`**. It starts the game with the mod.
 2. In the game's **Features** menu: use the **Enhanced** skin, turn on **Quest marks** and the **Quest tracker**, and set
    **Quest guidance** to **Exact**.
 3. Play. Track a quest, or right-click a map to set a destination.
@@ -60,7 +61,7 @@ Keys work only while you are playing (never in a menu, a dialog or a map). Press
 | `Install.cmd`, `Uninstall.cmd` | Install the mod (run again to update), and take it out cleanly ([`tools/`](tools)) | Players |
 | [`docs/`](docs/index.md) | All the documentation. **Start at [docs/index.md](docs/index.md).** | Everyone |
 | [`game-integration/`](game-integration/README.md) | The Mod API for the game, as one patch, with instructions for putting it into the game | Developers |
-| [`dev-review/`](dev-review/README.md) | A loader that runs the mod on today's released game. It uses the game's debug switch, so it is kept apart from the mod | Developers, testers |
+| [`developer/`](developer/README.md) | A loader that runs the mod on today's released game. It uses the game's debug switch, so it is kept apart from the mod | Developers, testers |
 | [`source/`](source), [`test/`](test) | The mod's source and its tests (`npm test`, `npm run build`) | Developers |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release | Everyone |
 | [`tools/`](tools) | `install.ps1`, `uninstall.ps1`, `build.mjs` (source to `Mods/`), `sync.mjs` (the Mod API patch from the game source) | Maintainers |

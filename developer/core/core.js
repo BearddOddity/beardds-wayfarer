@@ -562,7 +562,7 @@
     }, true);
   }
 
-  // dev-review/core/src/core-entry.mjs
+  // developer/core/src/core-entry.mjs
   var storage = () => globalThis.daggerShell?.storage ?? globalThis.localStorage ?? null;
   var read = (k) => {
     try {

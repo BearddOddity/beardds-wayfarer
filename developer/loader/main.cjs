@@ -1,7 +1,7 @@
 // BEARDD'S WAYFARER - THE DEV-REVIEW LOADER: the Mod API for the RELEASED game, until the game ships it.
 //
 // It reaches the game through Electron's debug switch, so it is kept apart from the base mod, for the developers to review
-// (dev-review/README.md). launch.mjs requires this file into the game's own main process while the game is paused on its
+// (developer/README.md). launch.mjs requires this file into the game's own main process while the game is paused on its
 // first line, so it runs before the game's code and changes nothing in the game's folder. It wraps the dagger:// protocol so that:
 //   - /__dfo/core.js is the mod API's host (core/core.js, built from the game's own src/mods/modApi.js),
 //   - /__dfo/modules.json lists the modules installed in the player's Mods folder (<user data>/Mods/<id>/),

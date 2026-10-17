@@ -1,7 +1,7 @@
 {
   "id": "pins",
   "name": "Beardd's Wayfarer: pins",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "api": 1,
   "author": "Beardd (BearddOddity)",
   "description": "Your own places to go: right-click the local map for a destination (or a quest's location, or a dungeon's exit), middle-click a dungeon map to pin and name a spot, Follow a region-map waypoint; F1 drops a pin where you look, F3 cycles the quest and your places, Shift+F2 removes one. The compass, waypoint and trail follow the place.",

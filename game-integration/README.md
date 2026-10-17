@@ -50,7 +50,7 @@ All the targeted tests pass on Windows. (A clean Windows checkout has about 36 u
 compare against `bc80d4eee8`.) The mod's own tests run in this repository: `npm install`, then `npm test`.
 
 To play the source build with your installed shell (single player, your own profile): `test-build.ps1` (or
-**`Play the source build.cmd`**). It starts the dev server and points the shell at it through `DAGGER_DEV_URL`. Install the
+**`Play the source build (developers).cmd`**). It starts the dev server and points the shell at it through `DAGGER_DEV_URL`. Install the
 mod into that profile with this repository's **`Install.cmd`**; then **Settings > Mods & files > Modules** lists its three
 modules, each **running**.
 
@@ -86,7 +86,7 @@ A point-by-point list is in [docs/developers/review-checklist.md](../docs/develo
 | **Only trusted modules** | Make the host require a `sha256` from a list you publish, or a signature. The hook is `src/mods/moduleHost.js` step 5. Not implemented yet. |
 | **Web build** | Modules start only where the desktop shell offers a Mods folder (`daggerShell.modules`); a browser tab has none. |
 
-4. After the API ships, players no longer need the [dev-review loader](../dev-review/README.md).
+4. After the API ships, players no longer need the [developer loader](../developer/README.md).
 
 ## 5. Translating the mod's words
 

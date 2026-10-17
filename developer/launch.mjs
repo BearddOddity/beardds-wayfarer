@@ -1,4 +1,4 @@
-// Starts DFO Online with the dev-review loader in its main process, without touching the game's files.
+// Starts DFO Online with the developer loader in its main process, without touching the game's files.
 //
 // This game's Electron ignores a resources\app folder and NODE_OPTIONS, but honours its debug switch: the game is started
 // paused on its first line (--inspect-brk), the loader is required into the main process through the debugger, the game is
@@ -6,9 +6,12 @@
 // an update cannot remove the loader, because it is not in the game's folder.
 //
 // The debug port is open only for those few seconds, and only to this computer (127.0.0.1). That is why the loader is the
-// dev-review version and not the base mod: the base mod needs no debugger, only a game build with the Mod API.
+// developer version and not the base mod: the base mod needs no debugger, only a game build with the Mod API.
 //
 //   node launch.mjs [--game "<install folder>"] [-- <extra switches for the game>]
+// or, with no Node.js installed, the game's own runtime ("Play Wayfarer.cmd" does this):
+//   set ELECTRON_RUN_AS_NODE=1 & "<game>\DFO Online.exe" launch.mjs
+// The game's runtime is Node 24, so this file runs under either. The game itself is started WITHOUT ELECTRON_RUN_AS_NODE.
 // The game folder: --game, else the DFO_GAME environment variable, else "Daggerfall Online" beside this repo's folder.
 import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -24,7 +27,7 @@ const PORT = 9455;
 const extra = process.argv.includes('--') ? process.argv.slice(process.argv.indexOf('--') + 1) : [];   // anything after -- goes to the game (e.g. --remote-debugging-port=9333)
 const child = spawn(exe, [`--inspect-brk=${PORT}`, ...extra], {
   cwd: game, detached: true, stdio: 'ignore',
-  env: { ...process.env, WAYFARER_INSPECT: '1' },
+  env: Object.fromEntries(Object.entries({ ...process.env, WAYFARER_INSPECT: '1' }).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE')),
 });
 child.unref();
 

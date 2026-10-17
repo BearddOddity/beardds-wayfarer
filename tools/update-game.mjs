@@ -9,9 +9,9 @@
 //   2. rebase the Mod API commits (--branch, default mod-api) onto --base as <branch>-<short base>. An existing branch of
 //      that name is renamed to <name>-old-<time>, never deleted. A conflict aborts the cherry-pick: the report lists the
 //      files, and the rebase is then done by hand on the new branch (see docs/developers/maintaining.md)
-//   3. sync: regenerate game-integration/patches and the dev-review core (tools/sync.mjs)
-//   4. the loader self-check against the installed game (dev-review/check.cjs). Its report lists each hook that no longer
-//      matches, with the code around its needle: that is what to write a new pattern from (dev-review/core/hooks.cjs)
+//   3. sync: regenerate game-integration/patches and the developer core (tools/sync.mjs)
+//   4. the loader self-check against the installed game (developer/check.cjs). Its report lists each hook that no longer
+//      matches, with the code around its needle: that is what to write a new pattern from (developer/core/hooks.cjs)
 //   5. the mod's own tests and build (npm test, npm run build)
 //   6. --install, only when every step above passed: copy the modules into the player's Mods folder (tools/install.ps1)
 //
@@ -30,7 +30,7 @@ const source = resolve(arg('--source', join(repo, '..', 'daggerfall-js-source'))
 const base = arg('--base', 'origin/main');
 const branch = arg('--branch', 'mod-api');
 const game = resolve(arg('--game', process.env.DFO_GAME || join(repo, '..', 'Daggerfall Online')));
-const reportFile = resolve(arg('--report', join(repo, 'UPDATE-REPORT.md')));
+const reportFile = resolve(arg('--report', join(repo, 'developer', 'UPDATE-REPORT.md')));
 const checkFile = reportFile.replace(/\.md$/, '') + '.check.md';
 
 const log = (msg) => console.log(`\n== ${msg}`);
@@ -93,7 +93,7 @@ if (!flag('--skip-git')) {
   stage('rebase onto base', 'skipped', '--skip-git');
 }
 
-log('3. sync the patches and the dev-review core from the game source');
+log('3. sync the patches and the developer core from the game source');
 if (run(process.execPath, [join(repo, 'tools', 'sync.mjs'), '--source', source, '--base', base]) !== 0) {
   stage('sync patches and core', 'FAIL');
   finish(1, 'tools/sync.mjs failed: read its output above.');
@@ -101,11 +101,11 @@ if (run(process.execPath, [join(repo, 'tools', 'sync.mjs'), '--source', source, 
 stage('sync patches and core', 'ok');
 
 log('4. self-check the loader against the installed game');
-const check = run(join(game, 'DFO Online.exe'), [join(repo, 'dev-review', 'check.cjs')], repo, { ELECTRON_RUN_AS_NODE: '1', DFO_REPORT: checkFile, DFO_GAME: game });
+const check = run(join(game, 'DFO Online.exe'), [join(repo, 'developer', 'check.cjs')], repo, { ELECTRON_RUN_AS_NODE: '1', DFO_REPORT: checkFile, DFO_GAME: game });
 if (check !== 0) {
   stage('loader self-check', 'FAIL', 'see the hooks below');
   finish(3, `Each hook listed under "Hooks that need a new pattern" no longer matches the game. For each, find the same\n` +
-    `behaviour in the code shown, and write its new \`find\` pattern in dev-review/core/hooks.cjs (a list of patterns is tried in\n` +
+    `behaviour in the code shown, and write its new \`find\` pattern in developer/core/hooks.cjs (a list of patterns is tried in\n` +
     `order, so the old one can stay first). Then run: \`node tools/update-game.mjs --skip-git\`.`);
 }
 stage('loader self-check', 'ok');

@@ -16,10 +16,10 @@ Start here. Each page is short and stands on its own.
 | Page | Read it to... |
 | --- | --- |
 | [Putting the Mod API into the game](../game-integration/README.md) | apply the patches, test them and ship them (the instructions for the DFO Online team) |
-| [Architecture](developers/architecture.md) | see how the parts fit: the Mod API, the three modules, the dev-review loader |
+| [Architecture](developers/architecture.md) | see how the parts fit: the Mod API, the three modules, the developer loader |
 | [The Mod API](developers/mod-api.md) | write a module: the manifest, the events, the handle, the world probe |
 | [The modules](developers/modules.md) | understand how the waypoint, the guide trail and pins work inside |
-| [The dev-review loader](../dev-review/README.md) | run the mod on today's released game, and understand its hooks and its risks |
+| [The developer loader](../developer/README.md) | run the mod on today's released game, and understand its hooks and its risks |
 | [Maintaining](developers/maintaining.md) | change the mod, test it, release a new version - before and after the review; change the Mod API |
 | [Review checklist](developers/review-checklist.md) | review the work point by point, and see what is verified live and what is not |
 
@@ -48,7 +48,7 @@ Beardd's Wayfarer/
   test/                   the mod's tests
   docs/                   this documentation
   game-integration/       the Mod API for the game: one patch, how to apply and ship it, the mod's words for translators
-  dev-review/             the loader for today's released game (uses the game's debug switch; kept apart)
+  developer/             the loader for today's released game (uses the game's debug switch; kept apart)
   tools/                  install.ps1, uninstall.ps1, build.mjs, sync.mjs
 ```
 
@@ -60,4 +60,4 @@ Beardd's Wayfarer/
 | **Mod API** | The small, stable interface the game offers modules: events (what the game tells a module) and a handle (what a module may ask). |
 | **The compass's mark** | The diamond on the game's compass strip. The mod's waypoint and trail lead to whatever the compass marks. |
 | **Place** | Something you follow instead of the quest: a pin, a destination, the exit, or a region-map waypoint. |
-| **Hook** | In the dev-review loader only: a small change made in memory to the released game's code, so it can announce an event. |
+| **Hook** | In the developer loader only: a small change made in memory to the released game's code, so it can announce an event. |

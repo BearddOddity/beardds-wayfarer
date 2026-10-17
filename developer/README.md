@@ -1,4 +1,4 @@
-# The dev-review loader
+# The developer loader
 
 **For developers and testers.** This folder runs Beardd's Wayfarer on **today's released DFO Online client**, which does
 not have the Mod API yet. It is kept apart from the mod itself because it reaches the game through Electron's **debug
@@ -27,7 +27,7 @@ and starting the game from its own shortcut runs it exactly as shipped.
 | **Debug port** | The inspector is open for about 4 seconds at start, on 127.0.0.1 only. A local program could attach in that window. |
 | **Patched code** | The released client runs code it did not ship with. The hooks only add calls and hand over values, except the quest-guidance hooks below. |
 | **Quest-guidance hooks** | `questMark:person`, `:dealt`, `:dealtPeople`, `:seek`, `:seekMap` change what the game's Quest guidance marks. They bring the game source's own fixes (see [architecture](../docs/developers/architecture.md)). All optional. |
-| **Breaks on updates** | Hooks match the minified code. A release can move one. `Check hooks.cmd` names it; a required hook that moved switches off only the modules that need it, and says so on screen. |
+| **Breaks on updates** | Hooks match the minified code. A release can move one. `Check hooks (developers).cmd` names it; a required hook that moved switches off only the modules that need it, and says so on screen. |
 | **Online** | Nothing is sent to the server and no wire changes. The server cannot tell; it is still a modified client, which is why this needs the developers' permission. |
 
 ## Using it
@@ -37,8 +37,8 @@ top folder).
 
 | Do | How |
 | --- | --- |
-| Play with the mod | Double-click **`Play DFO with the loader.cmd`**, then press PLAY in the game's launcher as usual |
-| Check after a game update | Double-click **`Check hooks.cmd`** |
+| Play with the mod | Double-click **`Play with the loader (developers).cmd`**, then press PLAY in the game's launcher as usual |
+| Check after a game update | Double-click **`Check hooks (developers).cmd`** |
 | Point at another game folder | Set `DFO_GAME` to it (the default is `Daggerfall Online` beside this repository's folder), or pass `--game "<folder>"` |
 | See what happened at start | `loader.log` (one line per start: did it load, did it wrap, which modules and hooks) |
 | Inspect a run | `node launch.mjs -- --remote-debugging-port=9333`, then in the page: `await dfoMods.status()`, `dfoMods.report()` |
@@ -55,12 +55,12 @@ top folder).
 | `core/src/core-entry.mjs` | the page host's source: the bus, the world probe, the map destination methods, the quest helpers |
 | `core/core.js`, `core/modapi.mjs` | **generated** by `build-core.mjs` from `core-entry.mjs` and the game source's Mod API |
 | `build-core.mjs` | `node build-core.mjs [--source <daggerfall-js-source>]` |
-| `check.cjs`, `Check hooks.cmd` | the self-check (below) |
-| `Play DFO with the loader.cmd` | runs `launch.mjs` |
+| `check.cjs`, `Check hooks (developers).cmd` | the self-check (below) |
+| `Play with the loader (developers).cmd` | runs `launch.mjs` |
 
 ## The self-check (`check.cjs`)
 
-Run with the game's own Electron as Node (`Check hooks.cmd` does this), so it reads inside `app.asar` without unpacking it:
+Run with the game's own Electron as Node (`Check hooks (developers).cmd` does this), so it reads inside `app.asar` without unpacking it:
 
 1. **Hooks:** each matches exactly once in the installed game, and each patched chunk still parses.
 2. **Modules:** each installed module is judged by the game's own Mod API; its events are checked against the hooks.

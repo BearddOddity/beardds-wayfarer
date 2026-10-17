@@ -1,4 +1,4 @@
-// Self-check of the dev-review loader, run after a game update ("Check hooks.cmd" does this) and after any change to a module or the loader:
+// Self-check of the developer loader, run after a game update ("Check hooks (developers).cmd" does this) and after any change to a module or the loader:
 //   1. HOOKS: every hook in core/hooks.cjs matches exactly once in the installed game, and each patched chunk still parses;
 //   2. MODULES: each module in the Mods folder is judged by the game's OWN Mod API (parseManifest, moduleCompatible), and the
 //      events it listens to are checked against the hooks - a module is reported BROKEN on its own, the others unaffected;

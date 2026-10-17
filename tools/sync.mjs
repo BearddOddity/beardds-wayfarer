@@ -1,6 +1,6 @@
 // Refreshes the two things this repository takes FROM THE GAME SOURCE - the Mod API, which the game owns:
 //   game-integration/patches/   the Mod API branch as patches on the upstream main it was cut from (git format-patch)
-//   dev-review/core/            the loader's page host, rebuilt from the game's own Mod API (dev-review/build-core.mjs)
+//   developer/core/            the loader's page host, rebuilt from the game's own Mod API (developer/build-core.mjs)
 //
 // The mod itself (source/ -> Mods/) is this repository's own: `npm test`, `npm run build`. It needs no game source and no sync,
 // so it is updated with no game release - before or after the Mod API is merged. Run this only when the API changes.
@@ -30,6 +30,6 @@ run('git', ['format-patch', '-q', `${base}..HEAD`, '-o', patches], source);
 const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], source).trim();
 console.log(`patches: ${readdirSync(patches).length} commit(s) of ${branch} on ${base} (${run('git', ['rev-parse', '--short', base], source).trim()})`);
 
-// the dev-review loader's host
-process.stdout.write(run(process.execPath, [join(repo, 'dev-review', 'build-core.mjs'), '--source', source]));
+// the developer loader's host
+process.stdout.write(run(process.execPath, [join(repo, 'developer', 'build-core.mjs'), '--source', source]));
 console.log('synced');

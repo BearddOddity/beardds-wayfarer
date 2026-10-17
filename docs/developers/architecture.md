@@ -1,7 +1,7 @@
 # Architecture
 
 Beardd's Wayfarer is three **modules** written against the game's **Mod API**. The Mod API is a small change to the game's
-client (in [game-integration](../../game-integration/README.md)). Until the game ships it, a **dev-review loader** gives the
+client (in [game-integration](../../game-integration/README.md)). Until the game ships it, a **developer loader** gives the
 released client the same API from outside.
 
 ```
@@ -30,7 +30,7 @@ released client the same API from outside.
 | --- | --- | --- |
 | **The Mod API** | the game's source: `src/mods/` (patches in `game-integration/`) | the bus, the host that loads modules, the keys panel, the Modules card, and the event seams in the game's code |
 | **The mod** | this repository: `source/` (source), `Mods/` (built), `test/` | three module folders: `waypoint`, `guide-trail`, `pins` - owned, tested and released here, never inside the game |
-| **The dev-review loader** | `dev-review/` | runs the game's own Mod API on today's released client, by patching the served code in memory |
+| **The developer loader** | `developer/` | runs the game's own Mod API on today's released client, by patching the served code in memory |
 
 The modules are the same files in both cases. A module cannot tell whether the game or the loader hosts it.
 
