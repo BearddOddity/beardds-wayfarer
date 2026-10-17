@@ -27,7 +27,7 @@ It runs only in your own game client. Nothing is sent to the server, and every k
 
 ## Quick start
 
-1. Install: double-click **`Install.cmd`** (once, and again after each update). It copies the mod into your game's `Mods` folder.
+1. Install: read [Installing and running](docs/players/install.md) for where to put the mod's folder (beside the game, or inside it), then double-click **`Install.cmd`** (once, and again after each update).
 2. Play: double-click **`Play Wayfarer.cmd`**. It starts the game with the mod.
 2. In the game's **Features** menu: use the **Enhanced** skin, turn on **Quest marks** and the **Quest tracker**, and set
    **Quest guidance** to **Exact**.

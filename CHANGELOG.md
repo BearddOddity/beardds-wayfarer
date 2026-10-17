@@ -2,6 +2,12 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
+## Unreleased
+
+- **Play Wayfarer.cmd** finds the game whether the mod's folder is beside the game's folder or inside it.
+- The installation guide is rewritten: where the folder goes, the steps, questions, updates, and what the loader does.
+- The developer tools find the game in the same two places.
+
 ## 1.3.0 - 2026-10-17
 
 - **Play Wayfarer.cmd** starts the game with the mod. It does not install anything: run Install.cmd first, and again after each update.

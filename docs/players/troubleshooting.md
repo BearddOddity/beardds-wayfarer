@@ -1,5 +1,20 @@
 # Troubleshooting
 
+## Play Wayfarer.cmd says the game was not found
+
+The mod's folder must be beside the game's folder (`Daggerfall Online`), or inside it. See
+[Installing](install.md#where-to-put-the-mods-folder). If the game is somewhere else, set the `DFO_GAME` environment variable
+to the game's folder (the one holding `DFO Online.exe`) and run the file again.
+
+## Play Wayfarer.cmd says the mod is not installed
+
+Double-click `Install.cmd` first. It needs DFO Online to have been started once, so that its data folder exists.
+
+## The game starts but the Modules rows are missing
+
+Check `developer\loader.log` in the mod's folder: it says what the loader found. If the log is empty, `Play Wayfarer.cmd`
+did not run the loader; run it again.
+
 ## I see no waypoint and no trail
 
 Check these in order:
