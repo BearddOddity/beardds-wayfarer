@@ -914,7 +914,7 @@ function setup(dfo) {
     const left = !!plan?.pts && now - plan.at > REPLAN_MIN_MS && (nearestOnPath(plan.pts, feet)?.d ?? 0) > OFF_PATH_M;
     if (!plan || left || now - plan.at > every || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
       const hint = plan?.pts && Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) <= REPLAN_MOVE_M ? plan.pts : null;
-      const got = planToMark(router, world, feet, mark.q, hint);
+      const got = world.inDungeon?.() ? null : planToMark(router, world, feet, mark.q, hint);
       let pts = got?.pts ?? null;
       if (!got?.reached && typeof world.known === "function") {
         const via = planKnown(world.known(), feet, mark.q, world);

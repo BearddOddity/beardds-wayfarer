@@ -2,12 +2,16 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
-## Unreleased
+## 1.3.2 - 2026-10-17
 
 - **The guide trail is smooth.** Three things made it stutter, and each is fixed: an ember's sideways wiggle swung half a metre when it crossed a bend in the path (the direction now turns smoothly along the path); the stream's anchor jumped along the path when you walked past a bend (it now moves by your own steps); and every new plan made all the embers jump (a new plan now takes over from the old one over a third of a second). The way is also planned less often while you stay on it, which removes a small hitch twice a second. In a simulated walk the largest one-frame ember jump fell from 0.7-1 m to under 15 cm.
+- **Dungeon map pins stay on the dungeon.** A middle-click pin is moved to the nearest walked cell on the floor you clicked, so it never sits on empty paper off the dungeon.
+- **Dungeons use only what you have explored and pinned.** Under Journal and Town the quest mark is hidden in a dungeon; under Exact the game's dungeon quest marks show, and the trail follows them over the cells you have walked. Inside a dungeon the trail follows a destination you pinned on the dungeon map (middle-click), and it runs only over the cells you have walked, so it leads to the nearest explored point. A pin you made on a dungeon map is found again when you return to that dungeon.
+- The loader reads the dungeon mode from the game (the mode check was reading another object) and matches DFO Online 0.1.9409.
 - **The trail goes round buildings smoothly.** The way now keeps 0.8 m off walls and no longer grazes a building's corner, and a new plan keeps to the last one (the same side of a building, the same bend) instead of shifting by up to a third of a metre each time it is made. Walking round a simulated building, the plan-to-plan shift fell from 0.3 m to 0.03 m and the nearest approach to the wall rose from 1 cm to 0.6 m.
 - **Walking sideways is smooth.** The near end of the stream now leans toward you, fading back onto the planned way over ten metres, so a step to the side moves the stream with you and a new plan finds it already there; before, it stayed on the old way and snapped across at the next plan.
 - **Corners turn gently.** The way's bends are smoothed as widely as the walls allow (checked against the walls, 0.3 m to spare), so a building's corner is a wide arc and not a quick turn. In a simulated building the sharpest turn per metre fell from 9 to 3 degrees.
+- **The trail leads to region-map waypoints again.** The loader's hook for them did not match DFO Online 0.1.9404 (the minifier now writes let and `# Changelog
 - **Right-click on the town map works again** on current game builds. The loader's hook for it matched but changed nothing; now a hook that changes nothing counts as failed, so the self-check cannot pass it.
 - The loader matches DFO Online 0.1.9404: the compass hook reads the game's new function names.
 

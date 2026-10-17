@@ -64,6 +64,24 @@ export default function setup(dfo) {
   let resumeWay = null;        // the waypoint followed when the player went in somewhere: taken up again outside
   const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
 
+  let notesKey = null;   // the dungeon notes in the pins now (their positions as one key), or null: none read yet
+  /** A dungeon's notes are the places the player pinned on its map: the game keeps them, so they are found again on a visit. Read
+   *  whenever they change; outside a dungeon there are none. Pins are reindexed, so the followed place falls back to the quest. */
+  function syncNotes(probe, inDungeon) {
+    const list = inDungeon ? probe?.notes?.() ?? [] : [];
+    const key = list.map((n) => `${n.x.toFixed(2)},${n.y.toFixed(2)},${n.z.toFixed(2)}`).join('|');
+    if (key === notesKey) return;
+    notesKey = key;
+    const near = (p, n) => Math.hypot(p.xz[0] - n.x, p.xz[1] - n.z) < 0.5;
+    // a note the game no longer keeps (cleared on the map) goes; a place drops only when it is that one, the rest keep their place
+    for (let i = pins.length - 1; i >= 0; i--) if (pins[i].note && !list.some((n) => near(pins[i], n))) drop(i);
+    // a note the game keeps that is not a pin yet is one now (one set on the map this visit is already a pin: it is marked a note)
+    for (const n of list) {
+      const have = pins.find((p) => p.map && near(p, n));
+      if (have) have.note = true;
+      else pins.push({ xz: [n.x, n.z, n.y], map: true, note: true });
+    }
+  }
   const isWay = (i) => typeof i === 'string';
   const wayOf = (i) => (isWay(i) ? ways.find((w) => `wp:${w.id}` === i) ?? null : null);
   const placeOf = (i) => { const w = wayOf(i); return w ? [w.x, w.z] : i === OUT ? exit : i >= 0 ? pins[i]?.xz ?? null : null; };
@@ -101,6 +119,8 @@ export default function setup(dfo) {
   dfo.on('drawFx', (renderer, probe) => {
     const e = renderer?._camPos, v = renderer?._view;
     if (!e || !v) return;
+    const waysHere = probe?.waypoints?.() ?? null;   // read first: it tells the mode (a dungeon's probe says so)
+    const inDungeon = !!probe?.inDungeon?.();
     if (eye && Math.hypot(e[0] - eye[0], e[2] - eye[2]) > NEW_PLACE_M) {
       const sx = Math.round((e[0] - eye[0]) / TILE_M) * TILE_M, sz = Math.round((e[2] - eye[2]) / TILE_M) * TILE_M;
       if (Math.abs(e[0] - eye[0] - sx) < TILE_SLACK_M && Math.abs(e[2] - eye[2] - sz) < TILE_SLACK_M) {   // the open world stepped a tile: all moves with it
@@ -111,12 +131,14 @@ export default function setup(dfo) {
       } else if (!(probe && probe === world && probe.known?.()?.steps?.some((s) => Math.hypot(s[3] - e[0], s[5] - e[2]) < STEP_LAND_M))) {   // a teleporter keeps the place
         if (isWay(active)) resumeWay = active;   // a new place: its own frame, come into here
         pins = []; exit = null; cameIn = feetAt(e, probe); follow(QUEST);
+        notesKey = null;   // a dungeon's notes (the places pinned on its map, kept by the game) are read again by syncNotes
       }
     } else if (!eye) cameIn = feetAt(e, probe);   // the first place the game shows: a dungeon's entrance for a new game or the Test Room
     eye = [e[0], e[1], e[2]];
     aim = [-v[2], -v[6], -v[10]];   // the camera's forward, from the view matrix's third column's rows
     world = probe ?? null;
-    hearWaypoints(world?.waypoints?.() ?? null);
+    hearWaypoints(waysHere);
+    syncNotes(probe, inDungeon);
   });
 
   /** The region map's followed waypoints, where they lie now (null indoors): one newly followed is followed here at once, one
@@ -141,7 +163,7 @@ export default function setup(dfo) {
   // when it is near where the player came in. A map's own pin (a note: it says its height, dy) is its exact spot and says itself
   // whether it is on the exit; it is never snapped (the player: "the pin never stays where i place it")
   dfo.on('mapPick', (_sheet, dx, dz, quest, onExit, dy) => {
-    const at = pins.findIndex((p) => p.map);
+    const at = pins.findIndex((p) => p.map && !p.note);   // a destination replaces a destination, never a dungeon note
     if (dx === null || dx === undefined) {   // the flag was taken away
       if (flagIsExit) { dfo.say(tx('module.pins.exitCleared', 'Exit cleared')); forgetExit(); }
       else if (at >= 0) { dfo.say(tx('module.pins.destinationCleared', 'Destination cleared')); drop(at); }
@@ -191,7 +213,8 @@ export default function setup(dfo) {
   }, tx('module.pins.keyRemove', 'Remove the followed place'));
   dfo.onKey('F3', () => {
     if (!playing()) return;
-    const order = [QUEST, ...(exit ? [OUT] : []), ...pins.keys(), ...ways.map((w) => `wp:${w.id}`).filter((id) => !aside.has(id))];
+    const hideQuest = !!world?.questHidden?.();
+    const order = [...(hideQuest ? [] : [QUEST]), ...(exit ? [OUT] : []), ...pins.keys(), ...ways.map((w) => `wp:${w.id}`).filter((id) => !aside.has(id))];
     if (order.length < 2) { dfo.say(tx('module.pins.noPlaces', 'No places set - right-click the map, or {key} drops a pin', { key: keyFor(dropKey, 'F1') })); return; }
     follow(order[(order.indexOf(active) + 1) % order.length]);
     dfo.say(tx('module.pins.following', 'Following {what}', { what: label(active) }));

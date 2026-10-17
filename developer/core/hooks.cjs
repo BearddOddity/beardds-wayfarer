@@ -26,7 +26,7 @@ module.exports = {
   questMark: {
     needle: '.questMark){',
     find: /function ([\w$]+)\((\w+),(\w+),(\w+)\)\{if\(!(\w+)\.questMark\)\{/,
-    replace: 'function $1($2,$3,$4){$2=globalThis.dfo?.retarget($2)??$2;globalThis.dfo?.emit("questMark",$2,$3,$4);globalThis.dfo?.tint?.($5.questMark);if(!$5.questMark){',
+    replace: 'function $1($2,$3,$4){$2=globalThis.dfo?.questFor?globalThis.dfo.questFor($2):$2;globalThis.dfo?.emit("questMark",$2,$3,$4);globalThis.dfo?.tint?.($5.questMark);if(!$5.questMark){',
   },
   // systems/questGuidance.js questCompassPick: the Exact tier's mark keeps its height, as a third number (the compass reads the
   // first two), so a module knows which floor of a many-floored dungeon the mark is on. Event: questMark's questXZ[2]
@@ -123,13 +123,18 @@ module.exports = {
     event: 'drawFx',
     optional: true,
     needle: '.worldCoords(',
-    find: /function \w+\(\)\{const \w+=(\w+)\.worldCoords\(\w+\.pos\),\w+=\{\};for\(const (\w+) of (\w+)\(\)\)\{if\(!(\w+)\(\2\.id\)\)continue;const \w+=(\w+)\(\2\.mx,\2\.my\);/,
-    replace: (m, state, _w, shown, followed, toNative, offset, whole) => {
-      const modes = /\((\w+)\?\.mode\?\?"exterior"\)==="exterior"/.exec(whole)?.[1];
+    // the distances to the followed region-map waypoints, one per waypoint (the same function in both builds); the minifier writes
+    // let/const and `$` in names from 0.1.9404 on, so the identifiers are classes, not \w
+    find: /function ([\w$]+)\(\)\{(?:const|let) ([\w$]+)=([\w$]+)\.worldCoords\([\w$]+\.pos\),([\w$]+)=\{\};for\((?:const|let) ([\w$]+) of ([\w$]+)\(\)\)\{if\(!([\w$]+)\(\5\.id\)\)continue;(?:const|let) ([\w$]+)=([\w$]+)\(\5\.mx,\5\.my\);/,
+    replace: (m, fn, _v, state, _res, _n, shown, followed, _r, toNative, offset, whole) => {
+      // the mode and the ground are read from the code NEAREST this function: a chunk holds many functions that check the mode, and
+      // the first one is another object's (0.1.9409's first check was not the world's)
+      const nearest = (re, pick) => { let best = null, bd = Infinity; for (const mm of whole.matchAll(re)) { const d = Math.abs(mm.index - offset); if (d < bd) { bd = d; best = pick(mm); } } return best; };
+      const modes = nearest(/\(([\w$]+)\?\.mode\?\?[`"]exterior[`"]\)[!=]==[`"]exterior[`"]/g, (mm) => mm[1]);
       if (!modes) return m;
-      const ground = /\w+\(\w+\.eye,\w+,\((\w+),(\w+)\)=>(\w+)\(\1,\2\)\);if\(!\w+\.point\)/.exec(whole)?.[3];
+      const ground = nearest(/[\w$]+\([\w$]+\.eye,[\w$]+,\(([\w$]+),([\w$]+)\)=>([\w$]+)\(\1,\2\)\);if\(![\w$]+\.point\)/g, (mm) => mm[3]);
       const terrain = ground ? `globalThis.dfo?.terrain?.((x,z)=>(${modes}?.mode??"exterior")!=="exterior"?NaN:${ground}(x,z));` : '';
-      return `${terrain}globalThis.dfo?.bayWays?.(()=>(${modes}?.mode??"exterior")!=="exterior"?null:${shown}().filter(w=>${followed}(w.id)).map(w=>{const n=${toNative}(w.mx,w.my),l=${state}.localFromWorld(n.x,n.z);return Object.freeze({id:w.id,name:w.name,x:l[0],z:l[1]})}));${m}`;
+      return `${terrain}globalThis.dfo?.bayWays?.(()=>{const md=(${modes}?.mode??"exterior");globalThis.dfo?.modeSeen?.(md);return md!=="exterior"?null:${shown}().filter(w=>${followed}(w.id)).map(w=>{const n=${toNative}(w.mx,w.my),l=${state}.localFromWorld(n.x,n.z);return Object.freeze({id:w.id,name:w.name,x:l[0],z:l[1]})})});${m}`;
     },
   },
   // ui/questLens.js QuestLens.look(): after each quest tick, the game's own view of every active quest (title, where, latest
@@ -177,7 +182,7 @@ module.exports = {
     event: 'mapPick',
     needle: '.askText(',
     find: /return (\w+)\.askText\((\w+)\.notes\.get\((\w+)\)\?\.note\?\?(?:"",|``,)(\w+)=>\{\4==null\?(\w+)&&\2\.notes\.delete\(\3\):String\(\4\)\.trim\(\)\?([\w$]+)\(\2,\3,\4\):\2\.notes\.delete\(\3\),/,
-    replace: 'return $1.askText($2.notes.get($3)?.note??"",$4=>{$4==null?$5&&$2.notes.delete($3):String($4).trim()?($6($2,$3,$4),$5&&globalThis.dfo?.notePin?.($3,$2.notes.get($3)?.position,$1.player?.()?.feet,$2.entranceDiscovered?$1.startMarker:null)):($2.notes.delete($3),globalThis.dfo?.notePin?.($3,null)),',
+    replace: 'globalThis.dfo?.snapNote?.($2.notes.get($3));return $1.askText($2.notes.get($3)?.note??"",$4=>{$4==null?$5&&$2.notes.delete($3):String($4).trim()?($6($2,$3,$4),$5&&globalThis.dfo?.notePin?.($3,$2.notes.get($3)?.position,$1.player?.()?.feet,$2.entranceDiscovered?$1.startMarker:null)):($2.notes.delete($3),globalThis.dfo?.notePin?.($3,null)),',
   },
   'mapPick:press': {
     // ui/heldMap.js: the window's right press - the sheet's own arm first (the bay's waypoint menu), then the core's

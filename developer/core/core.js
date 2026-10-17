@@ -632,6 +632,42 @@
   }
   var waysOf = null;
   var terrainOf = null;
+  var dungeonNow = false;
+  var modeSeen = (m) => {
+    dungeonNow = m === "dungeon";
+  };
+  var tierCache = { at: -1e9, tier: "journal" };
+  function guidanceTier() {
+    const now = performance.now();
+    if (now - tierCache.at < 1e3) return tierCache.tier;
+    let tier = "journal";
+    try {
+      const raw = globalThis.daggerShell?.storage?.getItem?.("dagger.ui.v1") ?? globalThis.localStorage?.getItem?.("dagger.ui.v1") ?? null;
+      const v = raw ? JSON.parse(raw)?.questGuidance : null;
+      if (v === "town" || v === "exact") tier = v;
+    } catch {
+      tier = "journal";
+    }
+    tierCache = { at: now, tier };
+    return tier;
+  }
+  var questHidden = () => dungeonNow && guidanceTier() !== "exact";
+  var questFor = (quest) => bus.retarget(null) ?? (questHidden() ? null : quest);
+  function dungeonNotes() {
+    if (!dungeonNow) return [];
+    let rec = null;
+    try {
+      rec = recOf?.() ?? null;
+    } catch {
+      rec = null;
+    }
+    const out = [];
+    for (const n of rec?.notes?.values?.() ?? []) {
+      const p = n?.position;
+      if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) out.push({ x: p[0], z: p[2], y: p[1] });
+    }
+    return out;
+  }
   function world(collider) {
     if (!collider || typeof collider.raycast !== "function") return void 0;
     let p = probes.get(collider);
@@ -658,6 +694,15 @@
         },
         known() {
           return knownCopy();
+        },
+        inDungeon() {
+          return dungeonNow;
+        },
+        questHidden() {
+          return questHidden();
+        },
+        notes() {
+          return dungeonNotes();
         },
         waypoints() {
           try {
@@ -711,11 +756,12 @@
   function planDest(g) {
     let dest = null;
     return {
-      destinationAt(px, py) {
+      destinationAt(px, py, solidPl = null) {
         const v = g.view(), p = g.player();
-        if (!v || !p || g.solid()) return null;
-        let [x, z] = toMap(v, px, py);
-        const ent = g.entrance?.() ?? null;
+        if (!v || !p) return null;
+        if (g.solid() && !solidPl) return null;
+        let [x, z] = g.solid() ? solidPl : toMap(v, px, py);
+        const ent = g.solid() ? null : g.entrance?.() ?? null;
         const ep = ent ? toPaper(v, ent.x, ent.z) : null;
         const exit = !!ep && (ep[0] - px) ** 2 + (ep[1] - py) ** 2 <= TOWN_MARK_REACH * TOWN_MARK_REACH;
         if (exit) {
@@ -725,7 +771,7 @@
         return { x, z, dx: x - p.x, dz: -(z - p.z), quest: false, exit };
       },
       setDestination(d) {
-        dest = d ? { x: d.x, z: d.z } : null;
+        dest = d ? { x: d.x, z: d.z, y: d.y } : null;
       },
       destinationNear(px, py) {
         const v = g.view();
@@ -741,12 +787,23 @@
   var destAt = null;
   var destShown = false;
   var samePlace = (a, b) => !!a && !!b && Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.01;
+  function heightAt(sheet, x, z, pp) {
+    const a = sheet.paperAt(x, z, 0), b = sheet.paperAt(x, z, 1);
+    if (!a || !b) return null;
+    const vy = b[1] - a[1];
+    return Math.abs(vy) > 1e-6 ? (pp[1] - a[1]) / vy : null;
+  }
+  function flagNear(sheet, pp) {
+    if (!destD || destSheet !== sheet || !sheet.solid || !Number.isFinite(destD.y)) return sheet.destinationNear(pp[0], pp[1]);
+    const f = sheet.paperAt(destD.x, destD.z, destD.y);
+    return !!f && Math.abs(pp[0] - f[0]) <= 14 && pp[1] <= f[1] + 6 && pp[1] >= f[1] - 28;
+  }
   function mapContext(win, clientX, clientY) {
     const sheet = win?._sheet;
     if (!sheet || win._phase !== "map" || win._top || win._info || typeof sheet.destinationAt !== "function" || !bus.has("mapPick")) return false;
     const pp = win._paperPoint(clientX, clientY);
     if (!pp || !win._onSheet(pp)) return false;
-    if (sheet.destinationNear(pp[0], pp[1])) {
+    if (flagNear(sheet, pp)) {
       sheet.setDestination(null);
       destSheet = destD = destAt = null;
       destShown = false;
@@ -754,8 +811,10 @@
       bus.emit("mapPick", sheet.id, null, null, false);
       return true;
     }
-    const d = sheet.destinationAt(pp[0], pp[1]);
+    const solidPl = sheet.solid ? sheet.planAt?.(pp[0], pp[1]) ?? null : null;
+    const d = sheet.destinationAt(pp[0], pp[1], solidPl);
     if (!d) return false;
+    if (sheet.solid && typeof sheet.paperAt === "function") d.y = heightAt(sheet, d.x, d.z, pp);
     destSheet?.setDestination?.(null);
     sheet.setDestination(d);
     destSheet = sheet;
@@ -826,7 +885,7 @@
         destSheet.setDestination?.(on ? destD : null);
       }
     }
-    const p = sheet === destSheet ? sheet.destinationPaper?.(env.view) : null;
+    const p = sheet !== destSheet ? null : sheet.solid && Number.isFinite(destD?.y) && typeof sheet.paperAt === "function" ? sheet.paperAt(destD.x, destD.z, destD.y) : sheet.destinationPaper?.(env.view);
     if (!p) return;
     const [x, y] = p;
     ctx.save();
@@ -863,9 +922,42 @@
     ctx.stroke();
     ctx.restore();
   }
-  globalThis.dfo = { emit: (event, ...args) => {
+  function snapNote(note) {
+    const pos = note?.position;
+    if (!Array.isArray(pos) || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1]) || !Number.isFinite(pos[2])) return;
+    const cells = [];
+    for (const k of knownCopy()?.walked ?? []) {
+      const [a, b, c] = String(k).split(",").map(Number);
+      if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c)) cells.push([a, b, c]);
+    }
+    if (!cells.length) return;
+    let level = null, bd = Infinity;
+    for (const c of cells) {
+      const d = Math.abs(c[1] - pos[1]);
+      if (d < bd) {
+        bd = d;
+        level = c[1];
+      }
+    }
+    if (level === null || bd > 5) return;
+    let best = null, bdd = Infinity;
+    for (const c of cells) {
+      if (Math.abs(c[1] - level) > 0.5) continue;
+      const d = Math.hypot(c[0] + 0.5 - pos[0], c[2] + 0.5 - pos[2]);
+      if (d < bdd) {
+        bdd = d;
+        best = c;
+      }
+    }
+    if (best) {
+      pos[0] = best[0] + 0.5;
+      pos[1] = best[1];
+      pos[2] = best[2] + 0.5;
+    }
+  }
+  globalThis.dfo = { snapNote, emit: (event, ...args) => {
     if (bus.has(event)) bus.emit(event, ...args);
-  }, world, retarget: (q) => bus.retarget(q), townDest, planDest, mapContext, paintDest, notePin, knownRec: (fn) => {
+  }, world, retarget: (q) => bus.retarget(q), questFor, modeSeen, townDest, planDest, mapContext, paintDest, notePin, knownRec: (fn) => {
     recOf = fn;
   }, bayWays: (fn) => {
     waysOf = fn;

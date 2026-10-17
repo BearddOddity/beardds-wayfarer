@@ -85,7 +85,7 @@ export default function setup(dfo) {
     if (!plan || left || now - plan.at > every || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
       // the last way is the hint while the goal is the same: a new plan keeps to it (the same side of a building, the same bend)
       const hint = plan?.pts && Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) <= REPLAN_MOVE_M ? plan.pts : null;
-      const got = planToMark(router, world, feet, mark.q, hint);
+      const got = world.inDungeon?.() ? null : planToMark(router, world, feet, mark.q, hint);   // a dungeon: only the explored way (below)
       let pts = got?.pts ?? null;
       if (!got?.reached && typeof world.known === 'function') {   // not reached on the floor in sight: the way the map knows - stairs, teleporters, other floors
         const via = planKnown(world.known(), feet, mark.q, world);

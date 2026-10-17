@@ -81,6 +81,41 @@ function knownCopy() {
 // source's own probe, scenes/world.js `waypoints`; null indoors and underground), and the terrain's height (the source's collider
 // `heightAt`; NaN off the open world) for a collider that has none
 let waysOf = null, terrainOf = null;
+// THE MODE (the optional hook drawFx:outdoors reads the game's mode each frame and hands it over): a dungeon hides the game's quest mark
+// (the compass and every module's quest guidance) - a place the player has explored and pinned on the dungeon map is the only mark there
+let dungeonNow = false;
+const modeSeen = (m) => { dungeonNow = m === 'dungeon'; };
+// THE GUIDANCE TIER (the game's Features row 'quest-guidance', stored in the shell's UI prefs): Journal and Town mark no quest in a
+// dungeon; Exact marks the quest's items, people and foes there (the game's own dungeonQuestMarks), and the game sends them to the compass.
+let tierCache = { at: -1e9, tier: 'journal' };
+function guidanceTier() {
+  const now = performance.now();
+  if (now - tierCache.at < 1000) return tierCache.tier;
+  let tier = 'journal';
+  try {
+    const raw = globalThis.daggerShell?.storage?.getItem?.('dagger.ui.v1') ?? globalThis.localStorage?.getItem?.('dagger.ui.v1') ?? null;
+    const v = raw ? JSON.parse(raw)?.questGuidance : null;
+    if (v === 'town' || v === 'exact') tier = v;
+  } catch { tier = 'journal'; }
+  tierCache = { at: now, tier };
+  return tier;
+}
+/** Is the quest hidden here: in a dungeon, unless the guidance is Exact. */
+const questHidden = () => dungeonNow && guidanceTier() !== 'exact';
+/** The mark the compass and the modules see: a module's place if one is asked for, else the game's quest - none where it is hidden. */
+const questFor = (quest) => bus.retarget(null) ?? (questHidden() ? null : quest);
+/** The dungeon's notes (the pins the player dropped on its map), as the game keeps them: [{x, z, y}] in the frame the player walks in. */
+function dungeonNotes() {
+  if (!dungeonNow) return [];
+  let rec = null;
+  try { rec = recOf?.() ?? null; } catch { rec = null; }
+  const out = [];
+  for (const n of rec?.notes?.values?.() ?? []) {
+    const p = n?.position;
+    if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) out.push({ x: p[0], z: p[2], y: p[1] });
+  }
+  return out;
+}
 function world(collider) {
   if (!collider || typeof collider.raycast !== 'function') return undefined;
   let p = probes.get(collider);
@@ -99,6 +134,9 @@ function world(collider) {
       },
       ray(o, dir, max) { const d = collider.raycast(o, dir, max); return Number.isFinite(d) ? d : null; },
       known() { return knownCopy(); },
+      inDungeon() { return dungeonNow; },
+      questHidden() { return questHidden(); },
+      notes() { return dungeonNotes(); },
       waypoints() { try { return waysOf?.() ?? null; } catch { return null; } },
     });
     probes.set(collider, p);
@@ -142,17 +180,18 @@ function townDest(g) {
 function planDest(g) {
   let dest = null;
   return {
-    destinationAt(px, py) {
+    destinationAt(px, py, solidPl = null) {
       const v = g.view(), p = g.player();
-      if (!v || !p || g.solid()) return null;   // the solid map takes the right button for its turn
-      let [x, z] = toMap(v, px, py);
-      const ent = g.entrance?.() ?? null;
+      if (!v || !p) return null;
+      if (g.solid() && !solidPl) return null;   // the solid map: the plan point under the click, from the sheet (mapContext)
+      let [x, z] = g.solid() ? solidPl : toMap(v, px, py);
+      const ent = g.solid() ? null : (g.entrance?.() ?? null);
       const ep = ent ? toPaper(v, ent.x, ent.z) : null;
       const exit = !!ep && (ep[0] - px) ** 2 + (ep[1] - py) ** 2 <= TOWN_MARK_REACH * TOWN_MARK_REACH;
       if (exit) { x = ent.x; z = ent.z; }
       return { x, z, dx: x - p.x, dz: -(z - p.z), quest: false, exit };
     },
-    setDestination(d) { dest = d ? { x: d.x, z: d.z } : null; },
+    setDestination(d) { dest = d ? { x: d.x, z: d.z, y: d.y } : null; },
     destinationNear(px, py) { const v = g.view(); return !!(dest && v && !g.solid()) && nearFlag(toPaper(v, dest.x, dest.z), px, py); },
     destinationPaper(view) { return dest && !g.solid() ? toPaper(view, dest.x, dest.z) : null; },
   };
@@ -164,18 +203,35 @@ function planDest(g) {
 let destSheet = null, destD = null, destAt = null, destShown = false;
 const samePlace = (a, b) => !!a && !!b && Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.01;
 /** The map window's right press the sheet did not take: set the destination, or take it away on its flag. */
+/** A dungeon's ALL-floors view: the height a plan point lies at for a paper point to be where the player clicked (the sheet's own
+ *  paperAt, read at two heights), so the flag stands on the floor clicked, not on the floor under the view's ground. */
+function heightAt(sheet, x, z, pp) {
+  const a = sheet.paperAt(x, z, 0), b = sheet.paperAt(x, z, 1);
+  if (!a || !b) return null;
+  const vy = b[1] - a[1];
+  return Math.abs(vy) > 1e-6 ? (pp[1] - a[1]) / vy : null;
+}
+/** Is this paper point on the flag: in the solid view the flag stands at its own height; flat, the sheet's own test. */
+function flagNear(sheet, pp) {
+  if (!destD || destSheet !== sheet || !sheet.solid || !Number.isFinite(destD.y)) return sheet.destinationNear(pp[0], pp[1]);
+  const f = sheet.paperAt(destD.x, destD.z, destD.y);
+  return !!f && Math.abs(pp[0] - f[0]) <= 14 && pp[1] <= f[1] + 6 && pp[1] >= f[1] - 28;
+}
+
 function mapContext(win, clientX, clientY) {
   const sheet = win?._sheet;
   if (!sheet || win._phase !== 'map' || win._top || win._info || typeof sheet.destinationAt !== 'function' || !bus.has('mapPick')) return false;
   const pp = win._paperPoint(clientX, clientY);
   if (!pp || !win._onSheet(pp)) return false;
-  if (sheet.destinationNear(pp[0], pp[1])) {
+  if (flagNear(sheet, pp)) {
     sheet.setDestination(null); destSheet = destD = destAt = null; destShown = false; win._dirty = true;
     bus.emit('mapPick', sheet.id, null, null, false);
     return true;
   }
-  const d = sheet.destinationAt(pp[0], pp[1]);
+  const solidPl = sheet.solid ? sheet.planAt?.(pp[0], pp[1]) ?? null : null;
+  const d = sheet.destinationAt(pp[0], pp[1], solidPl);
   if (!d) return false;
+  if (sheet.solid && typeof sheet.paperAt === 'function') d.y = heightAt(sheet, d.x, d.z, pp);
   destSheet?.setDestination?.(null);
   sheet.setDestination(d); destSheet = sheet; destD = d; destShown = true; win._dirty = true;
   bus.emit('mapPick', sheet.id, d.dx, d.dz, !!d.quest, !!d.exit);
@@ -250,7 +306,7 @@ function paintDest(win, sheet, ctx, env) {
     const on = samePlace(bus.retarget(null), destAt);
     if (on !== destShown) { destShown = on; destSheet.setDestination?.(on ? destD : null); }
   }
-  const p = sheet === destSheet ? sheet.destinationPaper?.(env.view) : null;
+  const p = sheet !== destSheet ? null : sheet.solid && Number.isFinite(destD?.y) && typeof sheet.paperAt === 'function' ? sheet.paperAt(destD.x, destD.z, destD.y) : sheet.destinationPaper?.(env.view);
   if (!p) return;
   const [x, y] = p;
   ctx.save();
@@ -262,7 +318,34 @@ function paintDest(win, sheet, ctx, env) {
   ctx.restore();
 }
 
-globalThis.dfo = { emit: (event, ...args) => { if (bus.has(event)) bus.emit(event, ...args); }, world, retarget: (q) => bus.retarget(q), townDest, planDest, mapContext, paintDest, notePin, knownRec: (fn) => { recOf = fn; }, bayWays: (fn) => { waysOf = fn; }, terrain: (fn) => { terrainOf = fn; }, personSite, dealtWith, tint, api: MOD_API_VERSION };
+/** A dungeon note goes onto the floor the player has walked: the centre of the nearest walked cell, at that cell's height (the
+ *  trail's own cells, `x,y,z` keys of TRAIL_CELL 1 m). A note on empty paper, off every cell, is drawn off the dungeon; this keeps
+ *  it on a cell. Changes the note's position in place (the game's record keeps it). With no walked cell, nothing changes. */
+function snapNote(note) {
+  const pos = note?.position;
+  if (!Array.isArray(pos) || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1]) || !Number.isFinite(pos[2])) return;
+  const cells = [];
+  for (const k of knownCopy()?.walked ?? []) {
+    const [a, b, c] = String(k).split(',').map(Number);
+    if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c)) cells.push([a, b, c]);
+  }
+  if (!cells.length) return;
+  // THE FLOOR FIRST: the walked level nearest the height clicked. A level more than a storey (5 m) away is no floor the click was on:
+  // the note stays where it was put, rather than move to another floor.
+  let level = null, bd = Infinity;
+  for (const c of cells) { const d = Math.abs(c[1] - pos[1]); if (d < bd) { bd = d; level = c[1]; } }
+  if (level === null || bd > 5) return;
+  // then the nearest walked cell on that floor, its centre at the cell's own height
+  let best = null, bdd = Infinity;
+  for (const c of cells) {
+    if (Math.abs(c[1] - level) > 0.5) continue;
+    const d = Math.hypot(c[0] + 0.5 - pos[0], c[2] + 0.5 - pos[2]);
+    if (d < bdd) { bdd = d; best = c; }
+  }
+  if (best) { pos[0] = best[0] + 0.5; pos[1] = best[1]; pos[2] = best[2] + 0.5; }
+}
+
+globalThis.dfo = { snapNote, emit: (event, ...args) => { if (bus.has(event)) bus.emit(event, ...args); }, world, retarget: (q) => bus.retarget(q), questFor, modeSeen, townDest, planDest, mapContext, paintDest, notePin, knownRec: (fn) => { recOf = fn; }, bayWays: (fn) => { waysOf = fn; }, terrain: (fn) => { terrainOf = fn; }, personSite, dealtWith, tint, api: MOD_API_VERSION };
 
 let report = [];
 /** The loader is the shell the game's host asks: it lists the module folders and hands over each entry's source, fetched
