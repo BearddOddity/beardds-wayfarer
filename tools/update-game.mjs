@@ -29,7 +29,9 @@ const arg = (name, fallback) => { const i = argv.indexOf(name); return i >= 0 ? 
 const source = resolve(arg('--source', join(repo, '..', 'daggerfall-js-source')));
 const base = arg('--base', 'origin/main');
 const branch = arg('--branch', 'mod-api');
-const game = resolve(arg('--game', process.env.DFO_GAME || join(repo, '..', 'Daggerfall Online')));
+// beside the mod's folder, or the mod's folder inside the game's
+const besideGame = [join(repo, '..', 'Daggerfall Online'), join(repo, '..')];
+const game = resolve(arg('--game', process.env.DFO_GAME || besideGame.find((d) => existsSync(join(d, 'DFO Online.exe'))) || besideGame[0]));
 const reportFile = resolve(arg('--report', join(repo, 'developer', 'UPDATE-REPORT.md')));
 const checkFile = reportFile.replace(/\.md$/, '') + '.check.md';
 

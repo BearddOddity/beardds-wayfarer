@@ -16,7 +16,8 @@ const { spawnSync } = require('child_process');
 const HOOKS = require('./core/hooks.cjs');
 const { applyPatch } = require('./core/patch-core.cjs');
 
-const game = path.resolve(process.argv[2] || process.env.DFO_GAME || path.join(__dirname, '..', '..', 'Daggerfall Online'));
+const beside = [path.join(__dirname, '..', '..', 'Daggerfall Online'), path.join(__dirname, '..', '..')];   // beside the mod's folder, or the mod's folder inside the game's
+const game = path.resolve(process.argv[2] || process.env.DFO_GAME || beside.find((d) => fs.existsSync(path.join(d, 'DFO Online.exe'))) || beside[0]);
 const userData = process.env.DAGGER_USER_DATA || path.join(process.env.APPDATA || '', 'Daggerfall JavaScript');
 const modsDir = process.argv[3] || path.join(userData, 'Mods');
 const assets = path.join(game, 'resources', 'app.asar', 'dist', 'assets');

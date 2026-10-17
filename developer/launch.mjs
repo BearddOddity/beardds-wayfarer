@@ -14,12 +14,15 @@
 // The game's runtime is Node 24, so this file runs under either. The game itself is started WITHOUT ELECTRON_RUN_AS_NODE.
 // The game folder: --game, else the DFO_GAME environment variable, else "Daggerfall Online" beside this repo's folder.
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const at = process.argv.indexOf('--game');
-const game = resolve(at >= 0 ? process.argv[at + 1] : process.env.DFO_GAME || join(here, '..', '..', 'Daggerfall Online'));
+// the game beside this mod's folder, or the mod's folder inside the game's folder
+const beside = [join(here, '..', '..', 'Daggerfall Online'), join(here, '..', '..')];
+const game = resolve(at >= 0 ? process.argv[at + 1] : process.env.DFO_GAME || beside.find((d) => existsSync(join(d, 'DFO Online.exe'))) || beside[0]);
 const exe = join(game, 'DFO Online.exe');
 const loader = join(here, 'loader', 'main.cjs').replace(/\\/g, '/');
 const PORT = 9455;

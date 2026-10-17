@@ -12,7 +12,7 @@
 #   .\test-build.ps1 -NoLaunch       start the server only and report whether it serves the game and your Daggerfall files
 param(
     [string]$Source = (Join-Path $PSScriptRoot '..\..\daggerfall-js-source'),   # default: beside this repo's folder
-    [string]$Game = $(if ($env:DFO_GAME) { $env:DFO_GAME } else { Join-Path $PSScriptRoot '..\..\Daggerfall Online' }),
+    [string]$Game = $(if ($env:DFO_GAME) { $env:DFO_GAME } elseif (Test-Path (Join-Path $PSScriptRoot '..\..\Daggerfall Online\DFO Online.exe')) { Join-Path $PSScriptRoot '..\..\Daggerfall Online' } else { Join-Path $PSScriptRoot '..\..' }),
     [string]$Arena2 = (Join-Path $PSScriptRoot '..\..\arena2'),   # your Daggerfall data folder (ARENA2)
     [int]$Port = 5173,
     [switch]$NoLaunch,
