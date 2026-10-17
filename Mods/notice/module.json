@@ -1,0 +1,12 @@
+{
+  "id": "notice",
+  "name": "Beardd's Wayfarer: mod notice",
+  "version": "1.4.0",
+  "api": 1,
+  "author": "Beardd (BearddOddity)",
+  "description": "A small line at the top of the view for a few seconds when a game starts: \"Beardd's Wayfarer active\". F6 on/off.",
+  "events": [
+    "drawFx"
+  ],
+  "sha256": "86d44ec9c8c79e7219d7638b1be46820c80ae115fb05599d4ed16f0fde7b2953"
+}

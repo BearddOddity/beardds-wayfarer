@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 $userData = if ($env:DAGGER_USER_DATA) { $env:DAGGER_USER_DATA } else { Join-Path $env:APPDATA 'Daggerfall JavaScript' }
 $mods = Join-Path $userData 'Mods'
-$modules = 'waypoint', 'guide-trail', 'pins'
+$modules = 'waypoint', 'guide-trail', 'pins', 'notice'
 
 # what is installed, and whether it is ours
 $ours = @()

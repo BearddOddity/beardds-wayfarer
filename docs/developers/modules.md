@@ -1,6 +1,6 @@
 # The modules, inside
 
-Three folders. Each lives with or without the others, and none reads another: they meet only at the compass's mark
+Four folders. Each lives with or without the others, and none reads another: they meet only at the compass's mark
 (`questMark`), which pins can move with `dfo.retarget`.
 
 | Module | Listens to | Keys | Source |
@@ -8,6 +8,7 @@ Three folders. Each lives with or without the others, and none reads another: th
 | `waypoint` | `questMark`, `drawFx` | F7, Shift+F3 | `source/waypoint/module.js` (one file) |
 | `guide-trail` | `questMark`, `drawFx` | F4, Shift+F4 | `source/guide-trail/src/` (bundled into `module.js`) |
 | `pins` | `mapPick`, `questMark`, `drawFx` | F2, F3, Shift+F2 | `source/pins/module.js` (one file) |
+| `notice` | `drawFx` | F6 | `source/notice/module.js` (one file) |
 
 Every key works only while the HUD drew in the last 400 ms (`HUD_LIVE_MS`): `questMark` is the HUD's heartbeat, and a menu,
 a dialog, a map or a loading screen stops it.

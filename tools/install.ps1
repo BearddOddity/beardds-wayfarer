@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $from = Join-Path (Split-Path $PSScriptRoot -Parent) 'Mods'
 $userData = if ($env:DAGGER_USER_DATA) { $env:DAGGER_USER_DATA } else { Join-Path $env:APPDATA 'Daggerfall JavaScript' }
 $to = Join-Path $userData 'Mods'
-$modules = 'waypoint', 'guide-trail', 'pins'
+$modules = 'waypoint', 'guide-trail', 'pins', 'notice'
 
 if (-not (Test-Path $userData)) { throw "No game data folder at $userData. Start DFO Online once, then run this again." }
 New-Item -ItemType Directory -Force $to | Out-Null

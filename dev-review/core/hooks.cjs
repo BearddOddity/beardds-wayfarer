@@ -25,7 +25,7 @@ module.exports = {
   // Event: questMark(questXZ|null, playerXZ|null, heading01)
   questMark: {
     needle: '.questMark){',
-    find: /function (\w+)\((\w+),(\w+),(\w+)\)\{if\(!(\w+)\.questMark\)\{/,
+    find: /function ([\w$]+)\(([\w$]+),([\w$]+),([\w$]+)\)\{if\(!([\w$]+)\.questMark\)\{/,
     replace: 'function $1($2,$3,$4){$2=globalThis.dfo?.retarget($2)??$2;globalThis.dfo?.emit("questMark",$2,$3,$4);globalThis.dfo?.tint?.($5.questMark);if(!$5.questMark){',
   },
   // systems/questGuidance.js questCompassPick: the Exact tier's mark keeps its height, as a third number (the compass reads the

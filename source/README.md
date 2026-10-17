@@ -7,6 +7,7 @@ Edit the mod here. `npm run build` turns this folder into `../Mods/`, the folder
 | `waypoint/` | the quest waypoint | `questMark`, `drawFx` | `module.js` (one file) |
 | `guide-trail/` | the guide trail | `questMark`, `drawFx` | `src/setup.js`, bundled with `src/route.js`, `src/embers.js`, `src/fx.js` into `module.js` |
 | `pins/` | pins and destinations | `mapPick`, `questMark`, `drawFx` | `module.js` (one file) |
+| `notice/` | the mod notice (a line at start) | `drawFx` | `module.js` (one file) |
 
 Each folder is one module: a `module.json` (its id, name, version, the interface `api` it was written for, and the events it
 listens to) and a `module.js` whose default export is `setup(dfo)`. They are written against the game's **Mod API**,
