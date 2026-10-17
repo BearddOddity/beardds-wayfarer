@@ -7,7 +7,7 @@ Three folders. Each lives with or without the others, and none reads another: th
 | --- | --- | --- | --- |
 | `waypoint` | `questMark`, `drawFx` | F7, Shift+F3 | `source/waypoint/module.js` (one file) |
 | `guide-trail` | `questMark`, `drawFx` | F4, Shift+F4 | `source/guide-trail/src/` (bundled into `module.js`) |
-| `pins` | `mapPick`, `questMark`, `drawFx` | F2, F3, Shift+F2 | `source/pins/module.js` (one file) |
+| `pins` | `mapPick`, `questMark`, `drawFx` | F1, F3, Shift+F2 | `source/pins/module.js` (one file) |
 
 Every key works only while the HUD drew in the last 400 ms (`HUD_LIVE_MS`): `questMark` is the HUD's heartbeat, and a menu,
 a dialog, a map or a loading screen stops it.
@@ -90,6 +90,6 @@ follows (`active`: a pin's index, `QUEST`, `OUT` for the exit, or `'wp:<id>'`).
   it, never to the exit. Anything else is the one map destination (a new click replaces it).
 - **Region-map waypoints:** `world.waypoints()` every frame. A newly followed id is followed at once ("Following ... - X m");
   one unfollowed on the map is let go. A waypoint followed when the player goes inside is taken up again outside.
-- **F2** casts `world.ray` along the camera's forward (up to 120 m); a hit puts the pin 0.3 m short of it, a miss 25 m ahead
+- **F1** casts `world.ray` along the camera's forward (up to 120 m); a hit puts the pin 0.3 m short of it, a miss 25 m ahead
   along the ground.
 - **F3** cycles `[quest, exit?, ...pins, ...waypoints not put aside]`.

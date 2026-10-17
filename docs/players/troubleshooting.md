@@ -8,7 +8,7 @@ Check these in order:
 2. **Are you playing, not in a menu?** The waypoint and trail hide in menus, dialogs, maps and loading screens.
 3. **Does the compass mark anything?** Look at the compass strip at the top. No diamond there means the game marks nothing,
    so the mod has nothing to lead to. Track a quest (Quest tracker on, Quest marks on), or set your own place: right-click
-   the map, or press **F2**.
+   the map, or press **F1**.
 4. **Is it switched off?** Press **F7** (waypoint) or **F4** (trail). The game says "on" or "off".
 5. **Is the quest's town unknown to your map?** Then the compass waits by design. Open the region map: the quest's town is
    highlighted. Follow a waypoint there.

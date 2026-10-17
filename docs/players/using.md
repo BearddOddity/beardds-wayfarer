@@ -71,7 +71,7 @@ waypoint off the compass is the game's own again.
 
 ## Pins where you look
 
-- **F2** drops a pin where the crosshair meets the world (or 25 m ahead). You can have up to **8** pins.
+- **F1** drops a pin where the crosshair meets the world (or 25 m ahead). You can have up to **8** pins.
 - **F3** follows the next place in turn: **the quest, the exit, your pins and destinations, then your region-map waypoints**.
 - **Shift+F2** removes the place you are following.
 - Walk within 3 m of a pin or destination and it is **reached**: it is removed and the next one is followed.
@@ -108,7 +108,7 @@ the screen, halfway down**, so the middle stays clear if an enemy appears. Choos
 | Shift+F3 | Waypoint look (and the compass diamond's colour) |
 | F4 | Guide trail on / off |
 | Shift+F4 | Trail look |
-| F2 | Drop a pin where you look |
+| F1 | Drop a pin where you look |
 | F3 | Follow the next place |
 | Shift+F2 | Remove the followed place (a region waypoint: put it aside) |
 | Shift+F1 | Change the keys |

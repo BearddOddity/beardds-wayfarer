@@ -2,6 +2,13 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
+## Unreleased
+
+- The pin key is **F1** (it was F2). DFO Online 0.1.9381 gives F2 to the saddle panel. Shift+F1 still changes any key.
+- The loader (dev-review) matches DFO Online 0.1.9381: the waypoint, the guide trail and the pins are all hooked again.
+- The Mod API patch (game-integration) is rebased onto the game source's current main.
+- Not restored on 0.1.9381: the outdoor trail to region-map waypoints, and the quest-guidance fixes. The modules run without them.
+
 ## 1.2.1 - 2026-10-14
 
 - The waypoint shows the distance alone ("420 m", "1.9 km"). The walking time is gone.

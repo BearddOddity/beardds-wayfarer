@@ -27,7 +27,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 
 ## 2. Keys
 
-- [ ] Module keys: F2, F3, F4, F7 and Shift with F2, F3, F4. None is a gameplay default (`src/systems/inputActions.js`);
+- [ ] Module keys: F1, F3, F4, F7 and Shift with F1, F3, F4. None is a gameplay default (`src/systems/inputActions.js`);
       a test fails on a clash.
 - [ ] Every module key does nothing unless the HUD drew in the last 400 ms (menus, dialogs, maps use F1-F8 themselves).
 - [ ] Keys never fire from a text field, with Ctrl, Alt or Meta, or on repeat.

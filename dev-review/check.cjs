@@ -208,7 +208,7 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
       dfo.emit('drawFx', { _camPos: [0, 1.6, 0], _view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
       assert.ok(dfo.mapContext(win, 0, 0), 'a right click sets a destination');
       assert.ok(paint(), 'the flag shows while its place is followed');
-      at(0, 0); press('F2');   // a pin 25 m ahead, followed
+      at(0, 0); press('F1');   // a pin 25 m ahead, followed
       assert.ok(!paint(), 'the flag hides while a pin is followed');
       at(0, 0); press('F3');   // the quest
       assert.ok(!paint(), 'the flag hides while the quest is followed');
@@ -220,11 +220,11 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
       at(10, 0); press('F3'); at(10, 0); press('F3');   // round the cycle: the destination is not in it any more
       assert.ok(!paint(), 'the flag stays gone');
       console.log('ok   the map flag follows its place (pins on the core)');
-      // the player's own key: pins' "Drop a pin" given P (as the keys panel keeps it) answers at once, and F2 no longer does
-      globalThis.localStorage.setItem('dfjs-module-keys', JSON.stringify({ pins: { F2: 'KeyP' } }));
+      // the player's own key: pins' "Drop a pin" given P (as the keys panel keeps it) answers at once, and F1 no longer does
+      globalThis.localStorage.setItem('dfjs-module-keys', JSON.stringify({ pins: { F1: 'KeyP' } }));
       dfo.emit('drawFx', { _camPos: [5, 1.6, 0], _view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
-      at(10, 0); press('F2');
-      assert.notDeepStrictEqual(dfo.retarget(null), [5, -25], 'F2 drops nothing once the player moved it');
+      at(10, 0); press('F1');
+      assert.notDeepStrictEqual(dfo.retarget(null), [5, -25], 'F1 drops nothing once the player moved it');
       at(10, 0); press('KeyP');
       assert.deepStrictEqual(dfo.retarget(null), [5, -25], 'P drops the pin, and it is followed');
       console.log('ok   a module key the player changed answers on the new key (pins on the core)');

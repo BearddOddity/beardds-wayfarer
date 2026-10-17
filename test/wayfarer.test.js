@@ -42,7 +42,7 @@ test('PINS - THE EXIT: off until the player pins it on the map (the exit mark, o
   assert.deepEqual(h.targets.at(-1), [530, 650], 'the map\'s exit mark is the exit, wherever it is');
   assert.equal(h.kinds.at(-1), 'exit', 'and the game is told it is the exit (the waypoint colours it)');
   h.on.drawFx({ _camPos: [520, 2, 640], _view: view }, world);
-  h.keys.F2();   // a pin is followed now
+  h.keys.F1();   // a pin is followed now
   h.keys.F3();
   assert.equal(h.targets.at(-1), null, 'F3 from the last pin: the quest');
   h.keys.F3();
@@ -71,7 +71,7 @@ test('PINS - taking away a place that is not followed leaves the compass where i
   h.on.drawFx({ _camPos: [0, 2, 0], _view: view }, { ray: () => 5, floor: () => 0 });
   h.on.questMark(null, [0, 0], 0);
   h.on.mapPick('town', 30, 0, false);   // the destination, followed
-  h.keys.F2();                          // a pin, followed now
+  h.keys.F1();                          // a pin, followed now
   const pin = h.targets.at(-1);
   h.on.mapPick('town', null, null, false);   // the flag taken away while the pin is followed
   assert.deepEqual(h.targets.at(-1), pin, 'the pin is still followed');
@@ -268,19 +268,19 @@ test("THE GUIDE TRAIL ROUTER - round a wall, on a slope, never under the floor; 
   assert.equal(project(I, P, 0, 0, 5, 800, 600), null);
 });
 
-test('PINS - F2 drops a pin where the crosshair meets the world, F3 cycles the compass quest -> pins -> quest, Shift+F2 removes, arrival goes on, a new place clears; keys only while the HUD is up', async () => {
+test('PINS - F1 drops a pin where the crosshair meets the world, F3 cycles the compass quest -> pins -> quest, Shift+F2 removes, arrival goes on, a new place clears; keys only while the HUD is up', async () => {
   const { default: setupPins } = await import('../source/pins/module.js');
   const h = fakeHandle(); setupPins(h.dfo);
   const view = new Float32Array(16); view[2] = 0; view[6] = 0; view[10] = 1;   // forward = -(col3 rows) = (0, 0, -1): facing -z
   const renderer = { _camPos: [100, 2, 100], _view: view };
   const world = { ray: () => 10, floor: () => 0 };
   h.on.drawFx(renderer, world);
-  h.keys.F2();
+  h.keys.F1();
   assert.equal(h.targets.length, 0, 'the HUD is not up: no key does anything');
   h.on.questMark(null, [100, 100], 0);
-  h.keys.F2();
+  h.keys.F1();
   assert.deepEqual(h.targets.at(-1).map((n) => Math.round(n)), [100, 90], 'a pin where the ray met a wall (10 m, 0.3 short), and the compass follows it');
-  h.keys.F2();
+  h.keys.F1();
   assert.equal(h.said.at(-1).startsWith('Pin 2'), true);
   h.keys.F3();
   assert.equal(h.targets.at(-1), null, 'F3 past the last pin: the game\'s quest');
@@ -290,13 +290,13 @@ test('PINS - F2 drops a pin where the crosshair meets the world, F3 cycles the c
   assert.equal(h.said.at(-1), 'Pin 1 removed');
   h.on.questMark(null, [100, 90.5], 0);   // standing at the pin's spot: arrived
   assert.ok(h.said.some((s) => s.startsWith('Reached')), 'reaching a pin says so');
-  h.keys.F2(); h.keys.F2();
+  h.keys.F1(); h.keys.F1();
   h.on.drawFx({ _camPos: [900, 2, 900], _view: view }, world);   // a jump: a new place
   assert.equal(h.targets.at(-1), null, 'a new place clears the pins and gives the compass back');
   h.on.questMark(null, [900, 900], 0);
   h.keys.F3();
   assert.match(h.said.at(-1), /^No places set/, 'a jump keeps nothing: no exit unless the player pins one');
-  for (let i = 0; i < 10; i++) h.keys.F2();
+  for (let i = 0; i < 10; i++) h.keys.F1();
   assert.match(h.said.at(-1), /8 already/, 'eight at most');
 });
 
@@ -447,7 +447,7 @@ test('WORDS IN THE PLAYER\'S LANGUAGE - every word the three modules show goes t
   setupPins(h.dfo);
   h.on.drawFx({ _camPos: [0, 2, 0], _view: new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]) }, { ray: () => null, floor: () => 0 });
   h.on.questMark(null, [0, 0], 0);
-  h.keys.F2();
+  h.keys.F1();
   assert.equal(h.said.at(-1), '[module.pins.dropped]1', 'a host with a text core is asked for every line');
 });
 

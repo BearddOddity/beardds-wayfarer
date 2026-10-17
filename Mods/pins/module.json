@@ -4,11 +4,11 @@
   "version": "1.2.1",
   "api": 1,
   "author": "Beardd (BearddOddity)",
-  "description": "Your own places to go: right-click the local map for a destination (or a quest's location, or a dungeon's exit), middle-click a dungeon map to pin and name a spot, Follow a region-map waypoint; F2 drops a pin where you look, F3 cycles the quest and your places, Shift+F2 removes one. The compass, waypoint and trail follow the place.",
+  "description": "Your own places to go: right-click the local map for a destination (or a quest's location, or a dungeon's exit), middle-click a dungeon map to pin and name a spot, Follow a region-map waypoint; F1 drops a pin where you look, F3 cycles the quest and your places, Shift+F2 removes one. The compass, waypoint and trail follow the place.",
   "events": [
     "mapPick",
     "questMark",
     "drawFx"
   ],
-  "sha256": "6fd073288de47f46b1e67898c90c237fa50cb5f42839ae53ee6ea7856acf542f"
+  "sha256": "682b37946eeab3f7e012df173f170c8220ee5bef79c24d4d6b075a414fdc2e6f"
 }

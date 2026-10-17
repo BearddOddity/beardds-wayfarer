@@ -96,7 +96,7 @@ module.exports = {
   // Event: drawFx(renderer, world)
   drawFx: {
     needle: 'drawFx(){',
-    find: /drawFx\(\)\{(const \w+=\w+\.draw\(\);if\(!\w+\.live\|\|\w+\|\|!(\w+)\?\.gl\|\|!\2\._proj)/,
+    find: /drawFx\(\)\{((?:const|let) \w+=\w+\.draw\(\);if\(!\w+\.live\|\|\w+\|\|!(\w+)\?\.gl\|\|!\2\._proj)/,
     replace: (m, body, renderer, offset, whole) => {
       const c = /clear:\(\w+,\w+\)=>\w+\((\w+),\w+,\w+\)/.exec(whole)?.[1];
       return `drawFx(){globalThis.dfo?.emit("drawFx",${renderer},${c ? `globalThis.dfo.world(${c})` : 'undefined'});${body}`;
@@ -161,7 +161,7 @@ module.exports = {
     // this floor) and its way out (entranceHere, once found) off the overlay's `player:` and `entrance:` members.
     event: 'mapPick',
     needle: 'context(){return!1},homeView(',
-    find: /context\(\)\{return!1\},(homeView\((\w+)\)\{const (\w+)=(\w+)\(\),(\w+)=)/,
+    find: /context\(\)\{return!1\},(homeView\((\w+)\)\{(?:const|let) (\w+)=(\w+)\(\),(\w+)=)/,
     replace: (m, rest, k, a, playerHere, p, offset, whole) => {
       const pa = /planAt\((\w+),(\w+)\)\{return (\w+)&&(\w+)\?\w+\(\1,\2,\4,\w+\(\)\):null\}/.exec(whole);
       const ent = new RegExp(`player:${playerHere}\\(\\),entrance:(\\w+)\\(\\)`).exec(whole);
@@ -174,7 +174,7 @@ module.exports = {
     // cleared takes it away. The note's world position, the player's feet and the way out (once found) go to the core.
     event: 'mapPick',
     needle: '.askText(',
-    find: /return (\w+)\.askText\((\w+)\.notes\.get\((\w+)\)\?\.note\?\?"",(\w+)=>\{\4==null\?(\w+)&&\2\.notes\.delete\(\3\):String\(\4\)\.trim\(\)\?(\w+)\(\2,\3,\4\):\2\.notes\.delete\(\3\),/,
+    find: /return (\w+)\.askText\((\w+)\.notes\.get\((\w+)\)\?\.note\?\?(?:"",|``,)(\w+)=>\{\4==null\?(\w+)&&\2\.notes\.delete\(\3\):String\(\4\)\.trim\(\)\?([\w$]+)\(\2,\3,\4\):\2\.notes\.delete\(\3\),/,
     replace: 'return $1.askText($2.notes.get($3)?.note??"",$4=>{$4==null?$5&&$2.notes.delete($3):String($4).trim()?($6($2,$3,$4),$5&&globalThis.dfo?.notePin?.($3,$2.notes.get($3)?.position,$1.player?.()?.feet,$2.entranceDiscovered?$1.startMarker:null)):($2.notes.delete($3),globalThis.dfo?.notePin?.($3,null)),',
   },
   'mapPick:press': {
