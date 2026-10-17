@@ -1,7 +1,7 @@
 // MODULE: PINS - your own places to go, and the exit when you pin it.
 //
 // Right-click the local map (the street plan, or a dungeon's flat plan) to set a DESTINATION: any spot, or a quest's ringed building
-// when the click is on its ring - a flag stands there, and a right click on the flag takes it away. F2 drops a pin where the
+// when the click is on its ring - a flag stands there, and a right click on the flag takes it away. F1 drops a pin where the
 // crosshair meets the world, F3 cycles what the game's compass marks (the tracked quest, the exit once pinned, then each destination
 // or pin, then the quest again), Shift+F2 removes the one followed. The compass, the quest waypoint and the guide trail all follow
 // the compass's mark, so they follow the place with no more than this - the module asks the game to mark it (`dfo.retarget`) and
@@ -27,7 +27,7 @@
 // WORDS: every line it says goes through the game's own text core (`dfo.t`): the player's language where the game's table has
 // the row, else the English here. It ships no translations.
 //
-// Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F2 and F3 mean other things). The player may
+// Keys, only while the game's HUD is up (never in a menu, a dialog or a map, where F1 and F3 mean other things). The player may
 // change them (Shift+F1, the game's keys panel); the lines below name the key the player has now.
 const HUD_LIVE_MS = 400;
 const MAX_PINS = 8;
@@ -181,7 +181,7 @@ export default function setup(dfo) {
     dfo.say(tx('module.pins.dropped', 'Pin {n} dropped - following it', { n: pins.length }));
   }
 
-  dropKey = dfo.onKey('F2', () => { if (playing()) dropPin(); }, tx('module.pins.keyDrop', 'Drop a pin'));
+  dropKey = dfo.onKey('F1', () => { if (playing()) dropPin(); }, tx('module.pins.keyDrop', 'Drop a pin'));
   removeKey = dfo.onKey('Shift+F2', () => {
     if (!playing()) return;
     if (active === QUEST) { dfo.say(tx('module.pins.nothingFollowed', 'Nothing followed but the quest')); return; }
@@ -192,7 +192,7 @@ export default function setup(dfo) {
   dfo.onKey('F3', () => {
     if (!playing()) return;
     const order = [QUEST, ...(exit ? [OUT] : []), ...pins.keys(), ...ways.map((w) => `wp:${w.id}`).filter((id) => !aside.has(id))];
-    if (order.length < 2) { dfo.say(tx('module.pins.noPlaces', 'No places set - right-click the map, or {key} drops a pin', { key: keyFor(dropKey, 'F2') })); return; }
+    if (order.length < 2) { dfo.say(tx('module.pins.noPlaces', 'No places set - right-click the map, or {key} drops a pin', { key: keyFor(dropKey, 'F1') })); return; }
     follow(order[(order.indexOf(active) + 1) % order.length]);
     dfo.say(tx('module.pins.following', 'Following {what}', { what: label(active) }));
   }, tx('module.pins.keyNext', 'Follow the next place'));

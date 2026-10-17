@@ -1,4 +1,4 @@
-# The dev-review loader
+# The developer loader
 
 **For developers and testers.** This folder runs Beardd's Wayfarer on **today's released DFO Online client**, which does
 not have the Mod API yet. It is kept apart from the mod itself because it reaches the game through Electron's **debug

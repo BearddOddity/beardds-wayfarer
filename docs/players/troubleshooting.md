@@ -1,5 +1,20 @@
 # Troubleshooting
 
+## Play Wayfarer.cmd says the game was not found
+
+The mod's folder must be beside the game's folder (`Daggerfall Online`), or inside it. See
+[Installing](install.md#where-to-put-the-mods-folder). If the game is somewhere else, set the `DFO_GAME` environment variable
+to the game's folder (the one holding `DFO Online.exe`) and run the file again.
+
+## Play Wayfarer.cmd says the mod is not installed
+
+Double-click `Install.cmd` first. It needs DFO Online to have been started once, so that its data folder exists.
+
+## The game starts but the Modules rows are missing
+
+Check `dev-review\loader.log` in the mod's folder: it says what the loader found. If the log is empty, `Play Wayfarer.cmd`
+did not run the loader; run it again.
+
 ## I see no waypoint and no trail
 
 Check these in order:
@@ -8,7 +23,7 @@ Check these in order:
 2. **Are you playing, not in a menu?** The waypoint and trail hide in menus, dialogs, maps and loading screens.
 3. **Does the compass mark anything?** Look at the compass strip at the top. No diamond there means the game marks nothing,
    so the mod has nothing to lead to. Track a quest (Quest tracker on, Quest marks on), or set your own place: right-click
-   the map, or press **F2**.
+   the map, or press **F1**.
 4. **Is it switched off?** Press **F7** (waypoint) or **F4** (trail). The game says "on" or "off".
 5. **Is the quest's town unknown to your map?** Then the compass waits by design. Open the region map: the quest's town is
    highlighted. Follow a waypoint there.
@@ -49,4 +64,4 @@ Looks and keys are kept in the game's own storage. Clearing the game's data rese
 ## Reporting a problem
 
 Say what you did, what you expected, and what happened, and which game version (bottom of the launcher). A screenshot
-helps. If you use the dev-review loader, send `dev-review\loader.log` too.
+helps. If you use the developer loader, send `dev-review\loader.log` too.

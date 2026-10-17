@@ -1,4 +1,4 @@
-// Self-check of the dev-review loader, run after a game update ("Check hooks.cmd" does this) and after any change to a module or the loader:
+// Self-check of the developer loader, run after a game update ("Check hooks.cmd" does this) and after any change to a module or the loader:
 //   1. HOOKS: every hook in core/hooks.cjs matches exactly once in the installed game, and each patched chunk still parses;
 //   2. MODULES: each module in the Mods folder is judged by the game's OWN Mod API (parseManifest, moduleCompatible), and the
 //      events it listens to are checked against the hooks - a module is reported BROKEN on its own, the others unaffected;
@@ -16,7 +16,8 @@ const { spawnSync } = require('child_process');
 const HOOKS = require('./core/hooks.cjs');
 const { applyPatch } = require('./core/patch-core.cjs');
 
-const game = path.resolve(process.argv[2] || process.env.DFO_GAME || path.join(__dirname, '..', '..', 'Daggerfall Online'));
+const beside = [path.join(__dirname, '..', '..', 'Daggerfall Online'), path.join(__dirname, '..', '..')];   // beside the mod's folder, or the mod's folder inside the game's
+const game = path.resolve(process.argv[2] || process.env.DFO_GAME || beside.find((d) => fs.existsSync(path.join(d, 'DFO Online.exe'))) || beside[0]);
 const userData = process.env.DAGGER_USER_DATA || path.join(process.env.APPDATA || '', 'Daggerfall JavaScript');
 const modsDir = process.argv[3] || path.join(userData, 'Mods');
 const assets = path.join(game, 'resources', 'app.asar', 'dist', 'assets');
@@ -24,7 +25,8 @@ const version = JSON.parse(fs.readFileSync(path.join(game, 'resources', 'app.asa
 console.log(`DFO Online ${version}; modules in ${modsDir}`);
 
 let failed = false;
-const bad = (msg) => { failed = true; console.log(`FAIL ${msg}`); };
+const problems = [];   // every FAIL, for the report
+const bad = (msg) => { failed = true; problems.push(msg); console.log(`FAIL ${msg}`); };
 const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' });
 
 (async () => {
@@ -33,10 +35,13 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
   // ---- 1. hooks against the installed game ----
   const ids = Object.keys(HOOKS);
   const found = Object.fromEntries(ids.map((id) => [id, []]));
+  const near = Object.fromEntries(ids.map((id) => [id, []]));   // the code around each needle, for the report (the first three)
   for (const file of fs.readdirSync(assets).filter((f) => f.endsWith('.js'))) {
     let text = fs.readFileSync(path.join(assets, file), 'utf8');
     let touched = false;
     for (const id of ids) {
+      const at = text.indexOf(HOOKS[id].needle);
+      if (at >= 0 && near[id].length < 3) near[id].push({ file, code: text.slice(Math.max(0, at - 160), at + 480) });
       const r = applyPatch({ id, ...HOOKS[id] }, text);
       if (r.count) found[id].push(`${file} x${r.count}`);
       if (r.count === 1) { text = r.text; touched = true; }
@@ -208,7 +213,7 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
       dfo.emit('drawFx', { _camPos: [0, 1.6, 0], _view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
       assert.ok(dfo.mapContext(win, 0, 0), 'a right click sets a destination');
       assert.ok(paint(), 'the flag shows while its place is followed');
-      at(0, 0); press('F2');   // a pin 25 m ahead, followed
+      at(0, 0); press('F1');   // a pin 25 m ahead, followed
       assert.ok(!paint(), 'the flag hides while a pin is followed');
       at(0, 0); press('F3');   // the quest
       assert.ok(!paint(), 'the flag hides while the quest is followed');
@@ -220,11 +225,11 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
       at(10, 0); press('F3'); at(10, 0); press('F3');   // round the cycle: the destination is not in it any more
       assert.ok(!paint(), 'the flag stays gone');
       console.log('ok   the map flag follows its place (pins on the core)');
-      // the player's own key: pins' "Drop a pin" given P (as the keys panel keeps it) answers at once, and F2 no longer does
-      globalThis.localStorage.setItem('dfjs-module-keys', JSON.stringify({ pins: { F2: 'KeyP' } }));
+      // the player's own key: pins' "Drop a pin" given P (as the keys panel keeps it) answers at once, and F1 no longer does
+      globalThis.localStorage.setItem('dfjs-module-keys', JSON.stringify({ pins: { F1: 'KeyP' } }));
       dfo.emit('drawFx', { _camPos: [5, 1.6, 0], _view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
-      at(10, 0); press('F2');
-      assert.notDeepStrictEqual(dfo.retarget(null), [5, -25], 'F2 drops nothing once the player moved it');
+      at(10, 0); press('F1');
+      assert.notDeepStrictEqual(dfo.retarget(null), [5, -25], 'F1 drops nothing once the player moved it');
       at(10, 0); press('KeyP');
       assert.deepStrictEqual(dfo.retarget(null), [5, -25], 'P drops the pin, and it is followed');
       console.log('ok   a module key the player changed answers on the new key (pins on the core)');
@@ -233,5 +238,29 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
     }
   }
 
+  // The report an update needs: what failed, and the code each missing hook's needle sits in (to write its new pattern from).
+  const writeReport = (file) => {
+    const broken = ids.filter((id) => !hookOk[id]);
+    const lines = [
+      `# Loader report: DFO Online ${version}`, '',
+      `Checked ${new Date().toISOString().slice(0, 10)} against \`${game}\`. ${failed ? `**${problems.length + broken.length} problem(s).**` : 'All checks passed.'}`, '',
+      '## Hooks that need a new pattern', '',
+    ];
+    if (!broken.length) lines.push('None.', '');
+    for (const id of broken) {
+      const h = HOOKS[id];
+      lines.push(`### \`${id}\` (event \`${h.event ?? id}\`)`, '',
+        `- needle: \`${h.needle}\``, `- matches now: ${found[id].length ? found[id].join(', ') : 'none'}`,
+        `- pattern: \`${h.find}\``, '');
+      if (!near[id].length) lines.push('The needle is in no chunk: the code moved or was renamed. Search the chunks for the behaviour instead.', '');
+      for (const n of near[id]) lines.push(`Code around the needle in \`${n.file}\`:`, '', '```js', n.code, '```', '');
+    }
+    const notes = ids.filter((id) => HOOKS[id].optional && !found[id].length);
+    lines.push('## Optional hooks not found (their extra is off, no module is turned off)', '', notes.length ? notes.map((id) => `- \`${id}\``).join('\n') : 'None.', '');
+    lines.push('## Other problems', '', problems.length ? problems.map((p) => `- ${p.split('\n')[0]}`).join('\n') : 'None.', '');
+    fs.writeFileSync(file, lines.join('\n'));
+    console.log(`report written to ${file}`);
+  };
+  if (process.env.DFO_REPORT) writeReport(process.env.DFO_REPORT);
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.log(`FAIL ${e && e.stack || e}`); process.exit(1); });
