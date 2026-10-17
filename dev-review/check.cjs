@@ -24,7 +24,8 @@ const version = JSON.parse(fs.readFileSync(path.join(game, 'resources', 'app.asa
 console.log(`DFO Online ${version}; modules in ${modsDir}`);
 
 let failed = false;
-const bad = (msg) => { failed = true; console.log(`FAIL ${msg}`); };
+const problems = [];   // every FAIL, for the report
+const bad = (msg) => { failed = true; problems.push(msg); console.log(`FAIL ${msg}`); };
 const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' });
 
 (async () => {
@@ -33,10 +34,13 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
   // ---- 1. hooks against the installed game ----
   const ids = Object.keys(HOOKS);
   const found = Object.fromEntries(ids.map((id) => [id, []]));
+  const near = Object.fromEntries(ids.map((id) => [id, []]));   // the code around each needle, for the report (the first three)
   for (const file of fs.readdirSync(assets).filter((f) => f.endsWith('.js'))) {
     let text = fs.readFileSync(path.join(assets, file), 'utf8');
     let touched = false;
     for (const id of ids) {
+      const at = text.indexOf(HOOKS[id].needle);
+      if (at >= 0 && near[id].length < 3) near[id].push({ file, code: text.slice(Math.max(0, at - 160), at + 480) });
       const r = applyPatch({ id, ...HOOKS[id] }, text);
       if (r.count) found[id].push(`${file} x${r.count}`);
       if (r.count === 1) { text = r.text; touched = true; }
@@ -233,5 +237,29 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
     }
   }
 
+  // The report an update needs: what failed, and the code each missing hook's needle sits in (to write its new pattern from).
+  const writeReport = (file) => {
+    const broken = ids.filter((id) => !hookOk[id]);
+    const lines = [
+      `# Loader report: DFO Online ${version}`, '',
+      `Checked ${new Date().toISOString().slice(0, 10)} against \`${game}\`. ${failed ? `**${problems.length + broken.length} problem(s).**` : 'All checks passed.'}`, '',
+      '## Hooks that need a new pattern', '',
+    ];
+    if (!broken.length) lines.push('None.', '');
+    for (const id of broken) {
+      const h = HOOKS[id];
+      lines.push(`### \`${id}\` (event \`${h.event ?? id}\`)`, '',
+        `- needle: \`${h.needle}\``, `- matches now: ${found[id].length ? found[id].join(', ') : 'none'}`,
+        `- pattern: \`${h.find}\``, '');
+      if (!near[id].length) lines.push('The needle is in no chunk: the code moved or was renamed. Search the chunks for the behaviour instead.', '');
+      for (const n of near[id]) lines.push(`Code around the needle in \`${n.file}\`:`, '', '```js', n.code, '```', '');
+    }
+    const notes = ids.filter((id) => HOOKS[id].optional && !found[id].length);
+    lines.push('## Optional hooks not found (their extra is off, no module is turned off)', '', notes.length ? notes.map((id) => `- \`${id}\``).join('\n') : 'None.', '');
+    lines.push('## Other problems', '', problems.length ? problems.map((p) => `- ${p.split('\n')[0]}`).join('\n') : 'None.', '');
+    fs.writeFileSync(file, lines.join('\n'));
+    console.log(`report written to ${file}`);
+  };
+  if (process.env.DFO_REPORT) writeReport(process.env.DFO_REPORT);
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.log(`FAIL ${e && e.stack || e}`); process.exit(1); });
