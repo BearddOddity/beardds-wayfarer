@@ -58,26 +58,6 @@ function nearestOnPath(pts, p) {
   }
   return best;
 }
-function trimAhead(pts, from, ahead = GUIDE_AHEAD_M) {
-  const n = nearestOnPath(pts, from);
-  if (!n || pts.length < 2) return null;
-  const out = [n.at];
-  let run = 0, truncated = false;
-  for (let i = n.seg + 1; i < pts.length; i++) {
-    const a = out[out.length - 1], b = pts[i];
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    if (!(len > 1e-6)) continue;
-    if (run + len >= ahead) {
-      const t = (ahead - run) / len;
-      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
-      truncated = true;
-      break;
-    }
-    out.push([b[0], b[1], b[2]]);
-    run += len;
-  }
-  return out.length >= 2 && polylineLength(out) > 0.25 ? { pts: out, truncated } : null;
-}
 function smoothPath(pts, passes = 2) {
   let cur = pts;
   for (let k = 0; k < passes && cur.length > 2; k++) {
@@ -89,7 +69,7 @@ function smoothPath(pts, passes = 2) {
   return cur;
 }
 function createEmberField(max = GUIDE_MAX_EMBERS) {
-  const embers = Array.from({ length: max }, () => ({ pos: [0, 0, 0], size: 0, color: [1, 1, 1], alpha: 0 }));
+  const embers = Array.from({ length: max }, () => ({ pos: [0, 0, 0], size: 0, color: [1, 1, 1], alpha: 0, k: 0 }));
   return {
     embers,
     /** @param {number[][]|null} path @param {number} t seconds @param {{ truncated?: boolean, brightness?: number, style?: typeof GUIDE_STYLES.gold }} [o] */
@@ -98,6 +78,16 @@ function createEmberField(max = GUIDE_MAX_EMBERS) {
       const L = polylineLength(path);
       if (!(L > GUIDE_NEAR_M)) return 0;
       const flow = t * GUIDE_FLOW_MPS / GUIDE_SPACING_M, cycle = Math.floor(flow), off = (flow - cycle) * GUIDE_SPACING_M;
+      const heading = [];
+      for (let i = 1; i < path.length; i++) {
+        const hx = path[i][0] - path[i - 1][0], hz = path[i][2] - path[i - 1][2], hl = Math.hypot(hx, hz);
+        heading.push(hl > 1e-6 ? [hx / hl, hz / hl] : heading[heading.length - 1] ?? [0, 1]);
+      }
+      const turn = path.map((_, i) => {
+        const a = heading[Math.max(0, i - 1)], b = heading[Math.min(heading.length - 1, i)];
+        const x = a[0] + b[0], z = a[1] + b[1], l = Math.hypot(x, z);
+        return l > 1e-6 ? [x / l, z / l] : b;
+      });
       let n = 0, seg = 1, segStart = 0;
       let segLen = Math.hypot(path[1][0] - path[0][0], path[1][1] - path[0][1], path[1][2] - path[0][2]);
       for (let k = 0; n + 2 <= max; k++) {
@@ -114,27 +104,160 @@ function createEmberField(max = GUIDE_MAX_EMBERS) {
         if (!(env > 0.01)) continue;
         const A = path[seg - 1], B = path[seg];
         const u = segLen > 1e-6 ? (a - segStart) / segLen : 0;
-        const dx = B[0] - A[0], dz = B[2] - A[2], dl = Math.hypot(dx, dz);
+        const dx = B[0] - A[0], dz = B[2] - A[2];
+        const ta = turn[seg - 1], tb = turn[seg];
+        const hx = ta[0] + (tb[0] - ta[0]) * u, hz = ta[1] + (tb[1] - ta[1]) * u, hl = Math.hypot(hx, hz) || 1;
+        const nx = -hz / hl, nz = hx / hl;
         const snake = Math.sin(id * 0.33) * GUIDE_SNAKE_M;
         const sway = (h1 - 0.5) * 0.5 + Math.sin(t * 0.9 + h2 * TAU) * 0.08 + snake;
         const phase = frac(t * 0.28 + h3);
         const pool = embers[n++];
-        pool.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * snake : 0);
+        pool.k = k;
+        pool.pos[0] = A[0] + dx * u + nx * snake;
         pool.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_POOL_LIFT_M;
-        pool.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * snake : 0);
+        pool.pos[2] = A[2] + dz * u + nz * snake;
         pool.alpha = Math.min(1, env * GUIDE_POOL_ALPHA * style.alpha * brightness * (0.8 + 0.2 * Math.sin(t * 2 + h2 * TAU)));
         pool.size = GUIDE_POOL_M * style.size;
         pool.color[0] = style.pool[0];
         pool.color[1] = style.pool[1];
         pool.color[2] = style.pool[2];
         const e = embers[n++];
-        e.pos[0] = A[0] + dx * u + (dl > 1e-6 ? -dz / dl * sway : 0);
+        e.k = k;
+        e.pos[0] = A[0] + dx * u + nx * sway;
         e.pos[1] = A[1] + (B[1] - A[1]) * u + GUIDE_LIFT_M + phase * GUIDE_RISE_M;
-        e.pos[2] = A[2] + dz * u + (dl > 1e-6 ? dx / dl * sway : 0);
+        e.pos[2] = A[2] + dz * u + nz * sway;
         const glow = Math.pow(Math.sin(Math.PI * phase), 0.9) * (0.75 + 0.25 * Math.sin(t * 7 + h2 * 50));
         e.alpha = Math.min(1, env * glow * style.alpha * brightness);
         e.size = (GUIDE_SIZE_M[0] + h1 * (GUIDE_SIZE_M[1] - GUIDE_SIZE_M[0])) * style.size;
         for (let c = 0; c < 3; c++) e.color[c] = style.gold[c] + (style.ember[c] - style.gold[c]) * h2;
+      }
+      return n;
+    }
+  };
+}
+var GUIDE_BLEND_S = 0.35;
+var GUIDE_BLEND_NEAR_M = 3;
+var GUIDE_ANCHOR_S = 0.5;
+var GUIDE_LEASH_M = 10;
+var GUIDE_LEASH_FADE_M = 4;
+var GUIDE_LEASH_MAX_M = 8;
+function leashed(pts, feet) {
+  if (pts.length < 2) return pts;
+  let ci = 1, cl = 0;
+  while (ci < pts.length - 1 && cl < 3) {
+    cl += Math.hypot(pts[ci][0] - pts[ci - 1][0], pts[ci][2] - pts[ci - 1][2]);
+    ci++;
+  }
+  const tx0 = pts[ci][0] - pts[0][0], tz0 = pts[ci][2] - pts[0][2], tl = Math.hypot(tx0, tz0);
+  if (!(tl > 1e-6)) return pts;
+  const tx = tx0 / tl, tz = tz0 / tl, ex = feet[0] - pts[0][0], ez = feet[2] - pts[0][2], along = ex * tx + ez * tz;
+  let px = ex - along * tx, pz = ez - along * tz;
+  const mag = Math.hypot(px, pz), lead = 1 - smooth(GUIDE_LEASH_FADE_M, GUIDE_LEASH_MAX_M, mag);
+  if (!(mag > 1e-4) || !(lead > 0)) return pts;
+  px *= lead;
+  pz *= lead;
+  let run = 0;
+  return pts.map((p, i) => {
+    if (i > 0) run += Math.hypot(p[0] - pts[i - 1][0], p[2] - pts[i - 1][2]);
+    const x = Math.min(1, run / GUIDE_LEASH_M), w = 1 - x * x * (3 - 2 * x);
+    return [p[0] + px * w, p[1], p[2] + pz * w];
+  });
+}
+var GUIDE_ANCHOR_LOST_M = 6;
+function trimFrom(pts, s0, ahead = GUIDE_AHEAD_M) {
+  if (!pts || pts.length < 2) return null;
+  let run = 0, seg = pts.length - 2, from = [...pts[pts.length - 1]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (run + len >= s0 || i === pts.length - 1) {
+      const t = len > 1e-9 ? Math.min(1, Math.max(0, (s0 - run) / len)) : 0;
+      from = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      seg = i - 1;
+      break;
+    }
+    run += len;
+  }
+  const out = [from];
+  let went = 0, truncated = false;
+  for (let i = seg + 1; i < pts.length; i++) {
+    const a = out[out.length - 1], b = pts[i];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (!(len > 1e-6)) continue;
+    if (went + len >= ahead) {
+      const t = (ahead - went) / len;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+      truncated = true;
+      break;
+    }
+    out.push([b[0], b[1], b[2]]);
+    went += len;
+  }
+  return out.length >= 2 && polylineLength(out) > 0.25 ? { pts: out, truncated } : null;
+}
+function directionAt(pts, s) {
+  let run = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (run + len >= s || i === pts.length - 1) return len > 1e-9 ? [(b[0] - a[0]) / len, (b[1] - a[1]) / len, (b[2] - a[2]) / len] : [0, 0, 0];
+    run += len;
+  }
+  return [0, 0, 0];
+}
+function createStream(max = GUIDE_MAX_EMBERS) {
+  const field = createEmberField(max), old = createEmberField(max);
+  let cur = null, prev = null;
+  let since = 0, lastT = null;
+  const track = (path, feet) => ({ path, s: nearestOnPath(path, feet)?.s ?? 0, feet: [...feet] });
+  const advance = (tr, feet, dt) => {
+    const near = nearestOnPath(tr.path, feet);
+    if (!near) return;
+    if (near.d > GUIDE_ANCHOR_LOST_M) {
+      tr.s = near.s;
+      tr.feet = [...feet];
+      return;
+    }
+    const d = directionAt(tr.path, tr.s);
+    const pred = tr.s + (feet[0] - tr.feet[0]) * d[0] + (feet[1] - tr.feet[1]) * d[1] + (feet[2] - tr.feet[2]) * d[2];
+    tr.s = pred + (near.s - pred) * (1 - Math.exp(-dt / GUIDE_ANCHOR_S));
+    tr.feet = [...feet];
+  };
+  return {
+    embers: field.embers,
+    /** @param {number[][]|null} path the whole way @param {number[]|null} feet @param {number} t seconds
+     *  @param {{ ahead?: number, brightness?: number, style?: typeof GUIDE_STYLES.gold }} [o] @returns {number} how many are live */
+    fill(path, feet, t, { ahead = GUIDE_AHEAD_M, brightness = 1, style = GUIDE_STYLES.gold } = {}) {
+      if (!path || path.length < 2 || !feet) {
+        cur = prev = null;
+        lastT = null;
+        return 0;
+      }
+      const dt = lastT === null ? 0 : Math.min(0.1, Math.max(0, t - lastT));
+      lastT = t;
+      if (!cur || path !== cur.path) {
+        const on = cur ? nearestOnPath(cur.path, feet) : null;
+        prev = on && on.d <= GUIDE_BLEND_NEAR_M ? cur : null;
+        since = t;
+        cur = track(path, feet);
+      } else advance(cur, feet, dt);
+      if (prev) advance(prev, feet, dt);
+      const stretch = trimFrom(cur.path, cur.s, ahead);
+      if (!stretch) return 0;
+      const n = field.fill(leashed(stretch.pts, feet), t, { truncated: stretch.truncated, brightness, style });
+      const x = prev ? (t - since) / GUIDE_BLEND_S : 1;
+      if (!(x < 1)) {
+        prev = null;
+        return n;
+      }
+      const before = trimFrom(prev.path, prev.s, ahead);
+      if (!before) return n;
+      const nOld = old.fill(leashed(before.pts, feet), t, { truncated: before.truncated, brightness, style });
+      const w = x <= 0 ? 0 : x * x * (3 - 2 * x), byKey = /* @__PURE__ */ new Map();
+      for (let i = 0; i < nOld; i++) byKey.set(`${i & 1}:${old.embers[i].k}`, old.embers[i]);
+      for (let i = 0; i < n; i++) {
+        const was = byKey.get(`${i & 1}:${field.embers[i].k}`);
+        if (!was) continue;
+        const e = field.embers[i];
+        for (let c = 0; c < 3; c++) e.pos[c] = was.pos[c] + (e.pos[c] - was.pos[c]) * w;
       }
       return n;
     }
@@ -186,7 +309,7 @@ function packEmbers(buf, embers, n, from = 0, step = 1) {
   return count * 6;
 }
 function createGuideTrailFx({ renderer, clock = () => performance.now() / 1e3 }) {
-  const field = createEmberField();
+  const field = createStream();
   const poolBuf = new Float32Array(GUIDE_MAX_EMBERS * 6 * PARTICLE_FLOATS), sparkBuf = new Float32Array(GUIDE_MAX_EMBERS * 6 * PARTICLE_FLOATS);
   let effect = null, pools = null;
   let tex = null;
@@ -226,9 +349,7 @@ function createGuideTrailFx({ renderer, clock = () => performance.now() / 1e3 })
         return false;
       };
       if (!path || !feet || !ready()) return hide();
-      const stretch = trimAhead(path, feet, ahead);
-      if (!stretch) return hide();
-      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness, style });
+      const n = field.fill(path, feet, clock(), { ahead, brightness, style });
       if (!n || !ensure()) return hide();
       renderer.updateParticleEffect(pools, poolBuf, packEmbers(poolBuf, field.embers, n, 0, 2));
       pools.hidden = false;
@@ -270,6 +391,9 @@ var WINDOW_M = 45;
 var MAX_EXPAND = 3e3;
 var BUDGET_MS = 6;
 var WEIGHT = 1.6;
+var CLEAR = 0.8;
+var STICK = 0.85;
+var WALL_COST = 0.3;
 var LEVEL_WEIGHT = 2;
 var DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 var key = (ix, iz) => (ix + 32768) * 65536 + (iz + 32768);
@@ -331,8 +455,20 @@ function createRouter(world, { now = () => performance.now() } = {}) {
     }
     return true;
   }
+  function seesClear(a, b, margin = CLEAR) {
+    if (!sees(a, b)) return false;
+    const dx = b[0] - a[0], dz = b[2] - a[2], len = Math.hypot(dx, dz);
+    if (len < 1e-6) return true;
+    const ux = dx / len, uz = dz / len, y = a[1] + WAIST;
+    for (const side of [margin, -margin]) {
+      const hit = world.ray([a[0] - uz * side, y, a[2] + ux * side], [ux, 0, uz], len);
+      if (hit !== null && hit < len - 0.02) return false;
+    }
+    return true;
+  }
   return {
     sees,
+    seesClear,
     /** Forget what the world answered (a new scene, a teleport). */
     reset() {
       floors.clear();
@@ -341,9 +477,10 @@ function createRouter(world, { now = () => performance.now() } = {}) {
     /**
      * The way from `feet` ([x, y, z]) toward `goal` ([x, z], or [x, z, y] - then reached only on its own floor): points on the floor, a metre apart. Null when the player stands
      * where there is no floor. `reached` says whether the way ends at the goal or at the nearest the plan came to it.
+     * `hint` is the last way (points [x, y, z]): the plan keeps to it where another way costs about the same.
      * @returns {{ pts: number[][], reached: boolean }|null}
      */
-    plan(feet, goal) {
+    plan(feet, goal, hint = null) {
       let gx = goal[0], gz = goal[1];
       const dist = Math.hypot(gx - feet[0], gz - feet[2]);
       if (dist > WINDOW_M) {
@@ -374,6 +511,15 @@ function createRouter(world, { now = () => performance.now() } = {}) {
             break;
           }
         }
+      }
+      const sticky = /* @__PURE__ */ new Set();
+      for (const p of hint ?? []) {
+        const hx = Math.floor(p[0] / CELL), hz = Math.floor(p[2] / CELL);
+        sticky.add(key(hx, hz));
+        sticky.add(key(hx + 1, hz));
+        sticky.add(key(hx - 1, hz));
+        sticky.add(key(hx, hz + 1));
+        sticky.add(key(hx, hz - 1));
       }
       const nodes = /* @__PURE__ */ new Map();
       const start = { ix: s0.ix, iz: s0.iz, y: s0.y, g: 0, f: WEIGHT * h(s0.ix, s0.iz, s0.y), from: null, closed: false };
@@ -423,11 +569,13 @@ function createRouter(world, { now = () => performance.now() } = {}) {
           break;
         }
         if ((expanded & 31) === 0 && now() - t0 > BUDGET_MS) break;
+        const ok = DIRS.map((_d, di) => step(n, di));
+        const walled = (ok[0] ? 0 : 1) + (ok[1] ? 0 : 1) + (ok[2] ? 0 : 1) + (ok[3] ? 0 : 1);
         for (let di = 0; di < 8; di++) {
           const d = DIRS[di];
-          if (!step(n, di)) continue;
+          if (!ok[di]) continue;
           const ix = n.ix + d[0], iz = n.iz + d[1], k = key(ix, iz);
-          const g = n.g + Math.hypot(d[0], d[1]);
+          const g = n.g + Math.hypot(d[0], d[1]) * (sticky.has(k) ? STICK : 1) + WALL_COST * walled;
           const old = nodes.get(k);
           if (old && old.g <= g) continue;
           const y = floorOf(ix, iz, n.y);
@@ -446,7 +594,7 @@ function createRouter(world, { now = () => performance.now() } = {}) {
       let i = 0;
       while (i < raw.length - 1) {
         let j = raw.length - 1;
-        while (j > i + 1 && !sees(raw[i], raw[j])) j--;
+        while (j > i + 1 && !seesClear(raw[i], raw[j])) j--;
         pulled.push(raw[j]);
         i = j;
       }
@@ -461,7 +609,7 @@ function createRouter(world, { now = () => performance.now() } = {}) {
             return [q[0] + (o[0] - q[0]) * t, q[1] + (o[1] - q[1]) * t, q[2] + (o[2] - q[2]) * t];
           };
           const a = back(p), b = back(r);
-          if (sees(a, b)) next.push(a, b);
+          if (seesClear(a, b)) next.push(a, b);
           else next.push(q);
         }
         next.push(round[round.length - 1]);
@@ -485,13 +633,13 @@ function createRouter(world, { now = () => performance.now() } = {}) {
 }
 var DOOR_RANGE_M = 40;
 var INSIDE_GAP_M = 4;
-function planToMark(router, world, feet, q) {
-  let got = router.plan(feet, q);
+function planToMark(router, world, feet, q, hint = null) {
+  let got = router.plan(feet, q, hint);
   const end = got?.pts[got.pts.length - 1];
   if (got && !got.reached && end && Math.hypot(end[0] - q[0], end[2] - q[1]) > INSIDE_GAP_M && typeof world?.doors === "function") {
     const doors = world.doors(q[0], q[1], DOOR_RANGE_M).sort((a, b) => Math.hypot(a[0] - q[0], a[2] - q[1]) - Math.hypot(b[0] - q[0], b[2] - q[1]));
     for (const d of doors.slice(0, 3)) {
-      const via = router.plan(feet, [d[0], d[2]]);
+      const via = router.plan(feet, [d[0], d[2]], hint);
       if (via && via.reached) {
         got = { ...via, door: d };
         break;
@@ -700,10 +848,13 @@ function planKnown(known, feet, goal, world = null, { now = () => performance.no
 
 // source/guide-trail/src/setup.js
 var EYE_M = 1.6;
-var REPLAN_MS = 500;
+var REPLAN_MS = 1200;
+var REPLAN_MIN_MS = 250;
+var OFF_PATH_M = 2.5;
 var REPLAN_MOVE_M = 3;
 var MARK_FRESH_MS = 600;
 var HUD_LIVE_MS = 400;
+var SMOOTH_PASSES = [16, 10, 6, 3];
 var JUMP_M = 25;
 var english = (_key, en, args = null) => en.replace(/\{(\w+)\}/g, (m, k) => args && Object.hasOwn(args, k) ? String(args[k]) : m);
 function setup(dfo) {
@@ -734,6 +885,15 @@ function setup(dfo) {
     }
     lastFeet = feet;
   }
+  function roundOff(pts, rt) {
+    for (const passes of SMOOTH_PASSES) {
+      const cand = smoothPath(pts, passes);
+      let clear = true;
+      for (let i = 1; i < cand.length && clear; i++) clear = rt.seesClear(cand[i - 1], cand[i], 0.3);
+      if (clear) return cand;
+    }
+    return smoothPath(pts, 2);
+  }
   const nearer = (a, b, q) => {
     const end = (p) => {
       const e = p[p.length - 1];
@@ -750,14 +910,17 @@ function setup(dfo) {
       routerWorld = world;
       plan = null;
     }
-    if (!plan || now - plan.at > REPLAN_MS || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
-      const got = planToMark(router, world, feet, mark.q);
+    const every = plan?.pts ? REPLAN_MS : 500;
+    const left = !!plan?.pts && now - plan.at > REPLAN_MIN_MS && (nearestOnPath(plan.pts, feet)?.d ?? 0) > OFF_PATH_M;
+    if (!plan || left || now - plan.at > every || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
+      const hint = plan?.pts && Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) <= REPLAN_MOVE_M ? plan.pts : null;
+      const got = planToMark(router, world, feet, mark.q, hint);
       let pts = got?.pts ?? null;
       if (!got?.reached && typeof world.known === "function") {
         const via = planKnown(world.known(), feet, mark.q, world);
         if (via && (via.reached || via.step || !pts || nearer(via.pts, pts, mark.q))) pts = via.pts;
       }
-      plan = { at: now, goal: mark.q, pts: pts ? smoothPath(pts, 2) : null };
+      plan = { at: now, goal: mark.q, pts: pts ? roundOff(pts, router) : null };
     }
     return plan.pts;
   }

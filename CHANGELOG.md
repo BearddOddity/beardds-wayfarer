@@ -2,6 +2,15 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
+## Unreleased
+
+- **The guide trail is smooth.** Three things made it stutter, and each is fixed: an ember's sideways wiggle swung half a metre when it crossed a bend in the path (the direction now turns smoothly along the path); the stream's anchor jumped along the path when you walked past a bend (it now moves by your own steps); and every new plan made all the embers jump (a new plan now takes over from the old one over a third of a second). The way is also planned less often while you stay on it, which removes a small hitch twice a second. In a simulated walk the largest one-frame ember jump fell from 0.7-1 m to under 15 cm.
+- **The trail goes round buildings smoothly.** The way now keeps 0.8 m off walls and no longer grazes a building's corner, and a new plan keeps to the last one (the same side of a building, the same bend) instead of shifting by up to a third of a metre each time it is made. Walking round a simulated building, the plan-to-plan shift fell from 0.3 m to 0.03 m and the nearest approach to the wall rose from 1 cm to 0.6 m.
+- **Walking sideways is smooth.** The near end of the stream now leans toward you, fading back onto the planned way over ten metres, so a step to the side moves the stream with you and a new plan finds it already there; before, it stayed on the old way and snapped across at the next plan.
+- **Corners turn gently.** The way's bends are smoothed as widely as the walls allow (checked against the walls, 0.3 m to spare), so a building's corner is a wide arc and not a quick turn. In a simulated building the sharpest turn per metre fell from 9 to 3 degrees.
+- **Right-click on the town map works again** on current game builds. The loader's hook for it matched but changed nothing; now a hook that changes nothing counts as failed, so the self-check cannot pass it.
+- The loader matches DFO Online 0.1.9404: the compass hook reads the game's new function names.
+
 ## 1.3.1 - 2026-10-17
 
 - **Play Wayfarer.cmd** finds the game whether the mod's folder is beside the game's folder or inside it.

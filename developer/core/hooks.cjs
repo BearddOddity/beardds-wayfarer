@@ -25,7 +25,7 @@ module.exports = {
   // Event: questMark(questXZ|null, playerXZ|null, heading01)
   questMark: {
     needle: '.questMark){',
-    find: /function (\w+)\((\w+),(\w+),(\w+)\)\{if\(!(\w+)\.questMark\)\{/,
+    find: /function ([\w$]+)\((\w+),(\w+),(\w+)\)\{if\(!(\w+)\.questMark\)\{/,
     replace: 'function $1($2,$3,$4){$2=globalThis.dfo?.retarget($2)??$2;globalThis.dfo?.emit("questMark",$2,$3,$4);globalThis.dfo?.tint?.($5.questMark);if(!$5.questMark){',
   },
   // systems/questGuidance.js questCompassPick: the Exact tier's mark keeps its height, as a third number (the compass reads the
@@ -149,10 +149,12 @@ module.exports = {
     // ui/townSheet.js: the street plan. Its view is the variable its hoverLabel tests first; its player, field and quest rings
     // are the functions its homeView, field getter and `quests` member name.
     needle: 'context(){return!1},homeView(',
-    find: /context\(\)\{return!1\},homeView\((\w+)\)\{return (\w+)\(\1,(\w+)\(\)\)\},get field\(\)\{return (\w+)\(\)\},get plan\(\)\{return \4\(\),(\w+)\},names:(\w+),quests:(\w+),/,
+    find: /context\(\)\{return!1\},homeView\(([\w$]+)\)\{return ([\w$]+)\(\1,([\w$]+)\(\)\)\},get field\(\)\{return ([\w$]+)\(\)\},get plan\(\)\{return \4\(\),([\w$]+)\},names:([\w$]+),quests:([\w$]+),/,
     replace: (m, d, fit, player, field, plan, names, quests, offset, whole) => {
-      const view = /hoverLabel\(\w+,\w+\)\{if\((\w+)\)\{for\(const (\w+) of \w+\(\)\)\{const\[\w+,\w+\]=\w+\(\1,\2\.x,\2\.y\)/.exec(whole)?.[1];
-      if (!view) return m;   // no view to read: the street plan is left as it was (the hook is reported as not applied by its count)
+      // the street plan's own hoverLabel is the last one before this object (the chunk holds the other sheets' too)
+      const seen = [...whole.slice(Math.max(0, offset - 8000), offset).matchAll(/hoverLabel\([\w$]+,[\w$]+\)\{if\(([\w$]+)\)\{for\((?:const|let) ([\w$]+) of [\w$]+\(\)\)\{(?:const|let)\[[\w$]+,[\w$]+\]=[\w$]+\(\1,\2\.x,\2\.y\)/g)];
+      const view = seen.length ? seen[seen.length - 1][1] : undefined;
+      if (!view) return m;   // no view to read: the street plan is left as it was (patch-core counts a replace that changes nothing as no match)
       return `context(){return!1},...(globalThis.dfo?.townDest?.({view:()=>${view},player:()=>${player}(),field:()=>${field}(),quests:()=>${quests}()})??{}),homeView(${d}){return ${fit}(${d},${player}())},get field(){return ${field}()},get plan(){return ${field}(),${plan}},names:${names},quests:${quests},`;
     },
   },

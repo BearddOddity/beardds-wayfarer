@@ -16,7 +16,7 @@
 //
 // Not a DFU member. Ledger A (GUIDE10).
 
-import { createEmberField, trimAhead, GUIDE_MAX_EMBERS } from './embers.js';
+import { createStream, GUIDE_MAX_EMBERS } from './embers.js';
 /** The renderer's particle stream: 12 floats a vertex, six vertices a quad (corner, then picture coordinates). */
 const PARTICLE_FLOATS = 12;
 const PARTICLE_CORNERS = [[-1, -1, 0, 1], [1, -1, 1, 1], [1, 1, 1, 0], [-1, -1, 0, 1], [1, 1, 1, 0], [-1, 1, 0, 0]];
@@ -68,7 +68,7 @@ export function packEmbers(buf, embers, n, from = 0, step = 1) {
  * @param {{ renderer: any, clock?: () => number }} o `renderer` the port's; `clock` seconds (the embers are a function of it)
  */
 export function createGuideTrailFx({ renderer, clock = () => performance.now() / 1000 }) {
-  const field = createEmberField();
+  const field = createStream();
   const poolBuf = new Float32Array(GUIDE_MAX_EMBERS * 6 * PARTICLE_FLOATS), sparkBuf = new Float32Array(GUIDE_MAX_EMBERS * 6 * PARTICLE_FLOATS);
   /** @type {any} */ let effect = null, pools = null;
   /** @type {any} */ let tex = null;
@@ -97,9 +97,7 @@ export function createGuideTrailFx({ renderer, clock = () => performance.now() /
     draw(path, feet, { brightness = 1, ahead, style } = {}) {
       const hide = () => { if (effect) { effect.hidden = true; pools.hidden = true; } return false; };
       if (!path || !feet || !ready()) return hide();
-      const stretch = trimAhead(path, feet, ahead);
-      if (!stretch) return hide();
-      const n = field.fill(stretch.pts, clock(), { truncated: stretch.truncated, brightness, style });
+      const n = field.fill(path, feet, clock(), { ahead, brightness, style });
       if (!n || !ensure()) return hide();
       // the field writes a floor pool and then a spark for every slot of the window: the pools are the even quads, the sparks the odd
       renderer.updateParticleEffect(pools, poolBuf, packEmbers(poolBuf, field.embers, n, 0, 2));

@@ -473,3 +473,71 @@ test('THE COMPASS\'S DIAMOND - the waypoint gives the compass\'s diamond its own
   } finally { globalThis.requestAnimationFrame = raf; }
   assert.doesNotMatch(read('source/guide-trail/src/setup.js'), /markColour/, 'the trail colours nothing');
 });
+
+test('THE TRAIL DOES NOT STUTTER - a new plan every half second does not make the embers jump: they take over from the old plan over a moment, and the steps the player takes are never eased', async () => {
+  const { createStream, trimAhead, createEmberField } = await import('../source/guide-trail/src/embers.js');
+  const goal = [0, 0, 200], dt = 1 / 60, V = 5;
+  // each plan starts where the player stands, and its cells zigzag a little differently every time
+  const plan = (z, seed) => { const pts = []; for (let d = 0; d <= goal[2] - z; d += 1) pts.push([Math.sin((d + seed) * 1.7) * 0.5 * (d < 40 ? 1 : 0), 0, z + d]); pts.push(goal); return pts; };
+  const walk = (draw) => {
+    let z = 0, path = plan(0, 0), lastPlan = 0, seed = 0, prev = new Map(), worst = 0, live = 0;
+    for (let t = 0; t < 8; t += dt) {
+      z += V * dt;
+      if (t - lastPlan >= 0.5) { lastPlan = t; seed += 3.1; path = plan(z, seed); }
+      const { n, embers } = draw(path, [0, 0, z], t);
+      live = Math.max(live, n);
+      const cur = new Map();
+      for (let k = 1; k < n; k += 2) if (embers[k].alpha > 0.15) cur.set(embers[k].size.toFixed(7), [embers[k].pos[0], embers[k].pos[2]]);   // the ones you can see; a spark's size is its id's
+      if (t > 1) for (const [id, p] of cur) { const q = prev.get(id); if (q) worst = Math.max(worst, Math.hypot(p[0] - q[0], p[1] - q[1] - V * dt)); }   // what it moved beyond the player's own step
+      prev = cur;
+    }
+    return { worst, live };
+  };
+  const s = createStream();
+  const eased = walk((path, feet, t) => ({ n: s.fill(path, feet, t), embers: s.embers }));
+  const f = createEmberField();
+  const jumpy = walk((path, feet, t) => { const st = trimAhead(path, feet); return { n: st ? f.fill(st.pts, t, { truncated: st.truncated }) : 0, embers: f.embers }; });
+  assert.ok(eased.live > 20, 'the stream is live');
+  assert.ok(jumpy.worst > 0.4, 'the test sees a jump when the plans are not blended (' + jumpy.worst.toFixed(2) + ' m)');
+  assert.ok(eased.worst < 0.2, 'no ember jumps beyond the step the player takes (the largest was ' + eased.worst.toFixed(3) + ' m)');
+});
+
+test('THE TRAIL GOES ROUND A BUILDING WITH ROOM TO SPARE - it keeps off the walls (never grazing a corner), and a plan made a step later lies on the last one', async () => {
+  const { createRouter, planToMark } = await import('../source/guide-trail/src/route.js');
+  const { smoothPath, nearestOnPath } = await import('../source/guide-trail/src/embers.js');
+  // an open plain with a building 10 x 8 m at x 10..20, z -4.2..3.8
+  const inBox = (x, z) => x >= 10 && x <= 20 && z >= -4.2 && z <= 3.8;
+  const world = {
+    floor: (x, y, z) => (inBox(x, z) ? null : 0),
+    ray: (o, d, m) => { for (let t = 0; t <= m; t += 0.05) if (inBox(o[0] + d[0] * t, o[2] + d[2] * t)) return t; return null; },
+  };
+  const router = createRouter(world, STILL), goal = [32, 0.2];
+  const clearance = (pts) => Math.min(...pts.map((p) => Math.hypot(Math.max(10 - p[0], 0, p[0] - 20), Math.max(-4.2 - p[2], 0, p[2] - 3.8))));
+  const first = smoothPath(planToMark(router, world, [0, 0, 0.3], goal).pts, 2);
+  assert.ok(planToMark(router, world, [0, 0, 0.3], goal).reached, 'the way is found round the building');
+  assert.ok(clearance(first) >= 0.5, 'the way keeps off the building (' + clearance(first).toFixed(2) + ' m at the nearest)');
+  // the player six metres on, standing on the way: the new plan, given the last, lies on it
+  const on = first[6], next = smoothPath(planToMark(router, world, [on[0], 0, on[2]], goal, first).pts, 2);
+  const worst = Math.max(...next.slice(0, 15).map((p) => nearestOnPath(first, p).d));
+  assert.ok(worst < 0.15, 'a plan made a few steps later lies on the last (' + worst.toFixed(2) + ' m off)');
+});
+
+test('THE TRAIL FOLLOWS A STEP TO THE SIDE - walking sideways moves the stream with the player, smoothly: no ember jumps, and a new plan (made from where the player now stands) finds it already there', async () => {
+  const { createStream } = await import('../source/guide-trail/src/embers.js');
+  const dt = 1 / 60, goal = 200;
+  const plan = (x, z) => { const pts = []; for (let d = 0; d <= goal - z; d += 1) pts.push([x * Math.max(0, 1 - d / 40), 0, z + d]); pts.push([0, 0, goal]); return pts; };   // from the player, easing back to the line x = 0
+  const s = createStream();
+  let x = 0, path = plan(0, 0), lastPlan = 0, planX = 0, prev = new Map(), worst = 0, nearX = 0;
+  for (let t = 0; t < 4; t += dt) {
+    x += 5 * dt;                                         // five metres a second to the side, standing at z = 0
+    if (t - lastPlan >= 1.2 || (t - lastPlan >= 0.25 && Math.abs(x - planX) > 2.5)) { lastPlan = t; planX = x; path = plan(x, 0); }   // a new plan, from where the player stands now: every 1.2 s, or sooner once they are 2.5 m off the way (setup.js)
+    const n = s.fill(path, [x, 0, 0], t);
+    const cur = new Map();
+    for (let k = 1; k < n; k += 2) if (s.embers[k].alpha > 0.15) cur.set(s.embers[k].size.toFixed(7), [s.embers[k].pos[0], s.embers[k].pos[2]]);
+    if (t > 0.5) for (const [id, p] of cur) { const q = prev.get(id); if (q) worst = Math.max(worst, Math.hypot(p[0] - q[0] - 5 * dt, p[1] - q[1])); }   // beyond the sideways step of the player
+    prev = cur;
+    if (t > 3.5) nearX = Math.min(...[...cur.values()].map((p) => Math.abs(p[0] - x)));
+  }
+  assert.ok(worst < 0.25, 'no ember jumps as the player steps aside (the largest was ' + worst.toFixed(3) + ' m)');
+  assert.ok(nearX < 1.5, 'the stream is led to the player\'s side (its nearest ember was ' + nearX.toFixed(2) + ' m from them)');
+});

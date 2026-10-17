@@ -13,6 +13,9 @@ const WINDOW_M = 45;       // the plan reaches this far toward a farther goal
 const MAX_EXPAND = 3000;
 const BUDGET_MS = 6;
 const WEIGHT = 1.6;        // >1: head for the goal rather than fill the room
+const CLEAR = 0.8;         // the room a pulled-straight or rounded stretch keeps from a wall (m): rays this far either side must be open too
+const STICK = 0.85;         // a cell the last plan passed through costs this much of a step: a new plan keeps to the old way
+const WALL_COST = 0.3;       // a step from a cell with a wall on a side costs this much more for each such side: the way keeps off the walls, and goes round a building in an arc, not along its corners
 const LEVEL_WEIGHT = 2;    // a metre of height between a cell and a goal on another floor counts as two of ground
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const key = (ix, iz) => (ix + 32768) * 65536 + (iz + 32768);
@@ -77,16 +80,32 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
     return true;
   }
 
+  /** Like `sees`, but with room to spare: rays `CLEAR` either side of the line are open too, so a way pulled straight across the open or
+   *  rounded at a corner keeps off the walls and does not graze a building's corner. */
+  function seesClear(a, b, margin = CLEAR) {
+    if (!sees(a, b)) return false;
+    const dx = b[0] - a[0], dz = b[2] - a[2], len = Math.hypot(dx, dz);
+    if (len < 1e-6) return true;
+    const ux = dx / len, uz = dz / len, y = a[1] + WAIST;
+    for (const side of [margin, -margin]) {
+      const hit = world.ray([a[0] - uz * side, y, a[2] + ux * side], [ux, 0, uz], len);
+      if (hit !== null && hit < len - 0.02) return false;
+    }
+    return true;
+  }
+
   return {
     sees,
+    seesClear,
     /** Forget what the world answered (a new scene, a teleport). */
     reset() { floors.clear(); edges.clear(); },
     /**
      * The way from `feet` ([x, y, z]) toward `goal` ([x, z], or [x, z, y] - then reached only on its own floor): points on the floor, a metre apart. Null when the player stands
      * where there is no floor. `reached` says whether the way ends at the goal or at the nearest the plan came to it.
+     * `hint` is the last way (points [x, y, z]): the plan keeps to it where another way costs about the same.
      * @returns {{ pts: number[][], reached: boolean }|null}
      */
-    plan(feet, goal) {
+    plan(feet, goal, hint = null) {
       let gx = goal[0], gz = goal[1];
       const dist = Math.hypot(gx - feet[0], gz - feet[2]);
       if (dist > WINDOW_M) { gx = feet[0] + (gx - feet[0]) * WINDOW_M / dist; gz = feet[2] + (gz - feet[2]) * WINDOW_M / dist; }
@@ -115,6 +134,13 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
           if (DIRS.some((_d, di) => step(c, di))) { s0.ix = ix; s0.iz = iz; s0.y = cy; break; }
         }
       }
+      // THE LAST WAY: the cells it passed through (and their four neighbours) cost a little less, so a new plan keeps the same side of
+      // a building and the same bend, and does not flip between two near-equal ways as the player moves
+      const sticky = new Set();
+      for (const p of hint ?? []) {
+        const hx = Math.floor(p[0] / CELL), hz = Math.floor(p[2] / CELL);
+        sticky.add(key(hx, hz)); sticky.add(key(hx + 1, hz)); sticky.add(key(hx - 1, hz)); sticky.add(key(hx, hz + 1)); sticky.add(key(hx, hz - 1));
+      }
       const nodes = new Map();
       const start = { ix: s0.ix, iz: s0.iz, y: s0.y, g: 0, f: WEIGHT * h(s0.ix, s0.iz, s0.y), from: null, closed: false };
       nodes.set(key(start.ix, start.iz), start);
@@ -135,11 +161,13 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
         if (hn < bestH) { bestH = hn; best = n; }
         if (hn < 1.5) { goalNode = n; break; }
         if ((expanded & 31) === 0 && now() - t0 > BUDGET_MS) break;
+        const ok = DIRS.map((_d, di) => step(n, di));
+        const walled = (ok[0] ? 0 : 1) + (ok[1] ? 0 : 1) + (ok[2] ? 0 : 1) + (ok[3] ? 0 : 1);   // the sides of this cell that are shut
         for (let di = 0; di < 8; di++) {
           const d = DIRS[di];
-          if (!step(n, di)) continue;
+          if (!ok[di]) continue;
           const ix = n.ix + d[0], iz = n.iz + d[1], k = key(ix, iz);
-          const g = n.g + Math.hypot(d[0], d[1]);
+          const g = n.g + Math.hypot(d[0], d[1]) * (sticky.has(k) ? STICK : 1) + WALL_COST * walled;
           const old = nodes.get(k);
           if (old && old.g <= g) continue;
           const y = floorOf(ix, iz, n.y);
@@ -158,7 +186,7 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
       let i = 0;
       while (i < raw.length - 1) {
         let j = raw.length - 1;
-        while (j > i + 1 && !sees(raw[i], raw[j])) j--;
+        while (j > i + 1 && !seesClear(raw[i], raw[j])) j--;
         pulled.push(raw[j]); i = j;
       }
       if (goalNode) pulled.push([gx, pulled[pulled.length - 1][1], gz]);
@@ -171,7 +199,7 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
           const p = round[k - 1], q = round[k], r = round[k + 1];
           const back = (o) => { const t = Math.min(0.34, 4 / Math.max(1e-6, Math.hypot(o[0] - q[0], o[2] - q[2]))); return [q[0] + (o[0] - q[0]) * t, q[1] + (o[1] - q[1]) * t, q[2] + (o[2] - q[2]) * t]; };
           const a = back(p), b = back(r);
-          if (sees(a, b)) next.push(a, b); else next.push(q);
+          if (seesClear(a, b)) next.push(a, b); else next.push(q);
         }
         next.push(round[round.length - 1]);
         round = next;
@@ -203,13 +231,13 @@ const INSIDE_GAP_M = 4;    // the plan ended this far short of the goal: the goa
  * for the router's cache. @param {ReturnType<typeof createRouter>} router @param {any} world @param {number[]} feet @param {number[]} q
  * @returns {{ pts: number[][], reached: boolean, door?: number[] }|null}
  */
-export function planToMark(router, world, feet, q) {
-  let got = router.plan(feet, q);
+export function planToMark(router, world, feet, q, hint = null) {
+  let got = router.plan(feet, q, hint);
   const end = got?.pts[got.pts.length - 1];
   if (got && !got.reached && end && Math.hypot(end[0] - q[0], end[2] - q[1]) > INSIDE_GAP_M && typeof world?.doors === 'function') {
     const doors = world.doors(q[0], q[1], DOOR_RANGE_M).sort((a, b) => Math.hypot(a[0] - q[0], a[2] - q[1]) - Math.hypot(b[0] - q[0], b[2] - q[1]));
     for (const d of doors.slice(0, 3)) {
-      const via = router.plan(feet, [d[0], d[2]]);
+      const via = router.plan(feet, [d[0], d[2]], hint);
       if (via && via.reached) { got = { ...via, door: d }; break; }
     }
   }

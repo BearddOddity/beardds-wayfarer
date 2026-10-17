@@ -14,15 +14,18 @@
 //
 // Its words go through the game's own text core (`dfo.t`): the player's language where the game's table has the row, else the
 // English here. It ships no translations.
-import { smoothPath, GUIDE_STYLES, GUIDE_STYLE_ORDER } from './embers.js';
+import { smoothPath, nearestOnPath, GUIDE_STYLES, GUIDE_STYLE_ORDER } from './embers.js';
 import { createGuideTrailFx } from './fx.js';
 import { createRouter, planToMark, planKnown } from './route.js';
 
 const EYE_M = 1.6;           // the eye above the feet
-const REPLAN_MS = 500;       // the way to the mark is planned again this often
+const REPLAN_MS = 1200;      // the way to the mark is planned again this often while the player stays on it (a plan costs a few ms: twice a second was a hitch twice a second)
+const REPLAN_MIN_MS = 250;   // ...and when the player leaves it (below), never sooner than this
+const OFF_PATH_M = 2.5;      // the player this far from the planned way has left it
 const REPLAN_MOVE_M = 3;     // ...and when the mark moves this far
 const MARK_FRESH_MS = 600;   // the compass stops handing over a mark when there is none
 const HUD_LIVE_MS = 400;     // the HUD draws every frame while the game is being played; a menu, a dialog or a map stops it
+const SMOOTH_PASSES = [16, 10, 6, 3];   // how widely a way's bends are smoothed, widest first (a pass is a three-point average over its metre points)
 const JUMP_M = 25;           // a camera jump this far is a new place: what the router learned of the old one is dropped
 
 /** The English with each `{name}` filled: the words of a host with no text core (no `dfo.t`). Pure. */
@@ -57,6 +60,18 @@ export default function setup(dfo) {
     lastFeet = feet;
   }
 
+  /** The way with its bends smoothed as widely as the walls allow: a corner turns over a few metres, not in one step. The widest smoothing
+   *  whose every stretch is still clear of walls (0.3 m to spare) is kept; the plain two passes where none is. */
+  function roundOff(pts, rt) {
+    for (const passes of SMOOTH_PASSES) {
+      const cand = smoothPath(pts, passes);
+      let clear = true;
+      for (let i = 1; i < cand.length && clear; i++) clear = rt.seesClear(cand[i - 1], cand[i], 0.3);
+      if (clear) return cand;
+    }
+    return smoothPath(pts, 2);
+  }
+
   /** Does way `a` end nearer the mark than way `b` (by a metre or more)? */
   const nearer = (a, b, q) => { const end = (p) => { const e = p[p.length - 1]; return Math.hypot(e[0] - q[0], e[2] - q[1], Number.isFinite(q[2]) ? e[1] - q[2] : 0); }; return end(a) + 1 < end(b); };
   // the way to the mark: planned round walls and buildings, over the floor, through the game's read-only world probe
@@ -65,14 +80,18 @@ export default function setup(dfo) {
     if (!mark || now - mark.at > MARK_FRESH_MS) return null;
     if (!world) return [feet, [mark.q[0], feet[1], mark.q[1]]];   // an older host hands no probe: the straight line
     if (routerWorld !== world) { router = createRouter(world); routerWorld = world; plan = null; }
-    if (!plan || now - plan.at > REPLAN_MS || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
-      const got = planToMark(router, world, feet, mark.q);
+    const every = plan?.pts ? REPLAN_MS : 500;   // a plan that found no way is tried again sooner
+    const left = !!plan?.pts && now - plan.at > REPLAN_MIN_MS && (nearestOnPath(plan.pts, feet)?.d ?? 0) > OFF_PATH_M;
+    if (!plan || left || now - plan.at > every || Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) > REPLAN_MOVE_M) {
+      // the last way is the hint while the goal is the same: a new plan keeps to it (the same side of a building, the same bend)
+      const hint = plan?.pts && Math.hypot(plan.goal[0] - mark.q[0], plan.goal[1] - mark.q[1]) <= REPLAN_MOVE_M ? plan.pts : null;
+      const got = planToMark(router, world, feet, mark.q, hint);
       let pts = got?.pts ?? null;
       if (!got?.reached && typeof world.known === 'function') {   // not reached on the floor in sight: the way the map knows - stairs, teleporters, other floors
         const via = planKnown(world.known(), feet, mark.q, world);
         if (via && (via.reached || via.step || !pts || nearer(via.pts, pts, mark.q))) pts = via.pts;
       }
-      plan = { at: now, goal: mark.q, pts: pts ? smoothPath(pts, 2) : null };
+      plan = { at: now, goal: mark.q, pts: pts ? roundOff(pts, router) : null };
     }
     return plan.pts;
   }
