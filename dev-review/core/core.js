@@ -970,7 +970,8 @@
   addEventListener("load", () => {
     setTimeout(() => {
       status().then((s) => {
-        const lost = Object.entries(s.hooks ?? {}).filter(([, v]) => !String(v).startsWith("applied")).map(([k]) => k);
+        // only a required hook counts: an optional one that misses costs its extra, and no module is switched off
+        const lost = Object.entries(s.hooks ?? {}).filter(([, v]) => !String(v).startsWith("applied") && !String(v).startsWith("optional")).map(([k]) => k);
         if (lost.length) {
           console.warn("[wayfarer] a game update moved:", lost.join(", "), s);
           toast(`Beardd's Wayfarer loader: needs an update - ${lost.join(", ")}`);

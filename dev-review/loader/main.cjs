@@ -98,6 +98,8 @@ async function health() {
       for (const p of patches) {
         const s = seen[p.id], total = s.reduce((a, b) => a + b.n, 0);
         status.hooks[p.id] = total === 1 ? `applied in ${s[0].file}` : total === 0 ? 'not found' : `skipped: ${total} matches`;
+        // an optional hook that misses costs only its extra: labelled so the game's update notice does not name it as a problem
+        if (p.optional && !String(status.hooks[p.id]).startsWith('applied')) status.hooks[p.id] = 'optional: not found';
       }
     })().catch((e) => { status.errors.push(`hook scan failed: ${e.message}`); });
   }
