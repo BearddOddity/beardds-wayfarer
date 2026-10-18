@@ -4,6 +4,6 @@
   "version": "1.5.0",
   "api": 1,
   "author": "Beardd (BearddOddity)",
-  "description": "The Clairvoyance spell, inspired by The Elder Scrolls, of Beardd's Spells: a real spell of the game's magic, given to you on first load. A cast swaps the compass to the mark of the town and city, region or dungeon map, by where you stand or directly (Shift+1, 2, 3). Its page in the spellbook holds the lore and every setting.",
+  "description": "The Clairvoyance spell, inspired by The Elder Scrolls, of Beardd's Spells: a real spell of the game's magic, given to you on first load. A cast swaps the compass to the mark of the town and city, region or dungeon map, by where you stand, or the map you set on its spellbook page. Its page in the spellbook holds the lore and every setting.",
   "events": ["questMark", "drawFx"]
 }
