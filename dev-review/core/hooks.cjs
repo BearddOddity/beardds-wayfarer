@@ -45,7 +45,7 @@ module.exports = {
     event: 'questMark',
     optional: true,
     needle: 'find:',
-    find: /locationName:(\w+)\?(\w+)\.locationName:null,([^]*?)here:(\w+),find:(\w+)===!0&&!(\w+)\?\{regionIndex:\2\.regionIndex\?\?0,regionName:\2\.regionName\?\?"",locationName:\2\.locationName\}:null\}/,
+    find: /locationName:(\w+)\?(\w+)\.locationName:null,([^]*?)here:(\w+),find:(\w+)===!0&&!(\w+)\?\{regionIndex:\2\.regionIndex\?\?0,regionName:\2\.regionName\?\?(?:""|``),locationName:\2\.locationName\}:null\}/,
     replace: (m, named, site, mid, here, onMap) => `${m.slice(0, -1)},...(${named}&&${onMap}!==!0&&!${here}?{seek:{regionIndex:${site}.regionIndex??0,regionName:${site}.regionName??"",locationName:${site}.locationName}}:{})}`,
   },
   // ui/questLens.js entryTarget: an entry that names no place but says where a PERSON stands (their `__` building, `___` town -
@@ -86,7 +86,7 @@ module.exports = {
     event: 'questMark',
     optional: true,
     needle: '.target?.find;',
-    find: /function (\w+)\((\w+),(\w+),(\w+)\)\{const (\w+)=new Map;for\(const (\w+) of \2\?\?\[\]\)\{const (\w+)=\6\?\.target\?\.find;if\(!\7\)continue;/,
+    find: /function ([\w$]+)\(([\w$]+),([\w$]+),([\w$]+)\)\{(?:const|let) ([\w$]+)=new Map;for\((?:const|let) ([\w$]+) of \2\?\?\[\]\)\{(?:const|let) ([\w$]+)=\6\?\.target\?\.find;if\(!\7\)continue;/,
     replace: (m, fn, views, tracked, pixelOf, byPixel, v, find) => `function ${fn}(${views},${tracked},${pixelOf}){const ${byPixel}=new Map;for(const ${v} of ${views}??[]){const ${find}=${v}?.target?.find??(${v}?.id!=null&&${v}.id===${tracked}?${v}?.target?.seek:null);if(!${find})continue;`,
   },
   // scenes/hostMagic.js drawFx(): the world pass's effects door, called by every host's shared magic engine right after its

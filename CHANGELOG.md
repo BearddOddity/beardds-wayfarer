@@ -5,6 +5,7 @@ Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` ag
 ## Unreleased
 
 - A short "Beardd's Wayfarer active" line at the top of the view when a game starts. **F6** turns it off or on (Shift+F1 changes the key).
+- The region map marks the quest's town again, and the map's tracked-quest marks, on DFO Online 0.1.9600 (the loader's `questMark:seek` and `questMark:seekMap` hooks match the game's `let` and backtick strings).
 - **Play Wayfarer.cmd** finds the game whether the mod's folder is beside the game's folder or inside it.
 - The installation guide is rewritten: where the folder goes, the steps, questions, updates, and what the loader does.
 
