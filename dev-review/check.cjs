@@ -149,7 +149,8 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
     assert.deepStrictEqual(list.map((x) => x.dir), ['hears-draw', 'lost'], 'the installed modules are listed with their raw manifests');
     assert.strictEqual(list[0].manifest.events[0], 'drawFx');
     const status = await (await get('/__dfo/status.json')).json();
-    assert.deepStrictEqual(Object.keys(status.hooks).sort(), ['drawFx', 'drawFx:known', 'drawFx:outdoors', 'noSuchEvent'], 'only the events the installed modules listen to are hooked (and their optional extras)');
+    const drawFxParts = Object.keys(HOOKS).filter((k) => k.startsWith('drawFx:'));   // the optional extras of drawFx: the world probe's, and the spell's
+    assert.deepStrictEqual(Object.keys(status.hooks).sort(), ['drawFx', ...drawFxParts, 'noSuchEvent'].sort(), 'only the events the installed modules listen to are hooked (and their optional extras)');
     assert.ok(String(status.hooks.drawFx).startsWith('applied'), 'a hook an installed module wants is applied to the real game');
     assert.deepStrictEqual(status.modules['lost'].broken, ['noSuchEvent'], 'a module wanting an event with no hook is the one reported');
     assert.deepStrictEqual(status.modules['hears-draw'].broken, [], 'and the other is not');
@@ -213,6 +214,13 @@ const nodeCheck = (file) => spawnSync(process.execPath, ['--check', file], { env
       dfo.emit('drawFx', { _camPos: [0, 1.6, 0], _view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
       assert.ok(dfo.mapContext(win, 0, 0), 'a right click sets a destination');
       assert.ok(paint(), 'the flag shows while its place is followed');
+      // the keys switch (core.js KEY_BINDS_ON): off, no module key answers, so the key steps below do not apply
+      if (!/var KEY_BINDS_ON = true;/.test(coreSrc)) {
+        at(0, 0); press('F1');
+        assert.ok(paint(), 'with the keys off, F1 changes nothing');
+        console.log('ok   the keys are off: F1 does nothing');
+        return;
+      }
       at(0, 0); press('F1');   // a pin 25 m ahead, followed
       assert.ok(!paint(), 'the flag hides while a pin is followed');
       at(0, 0); press('F3');   // the quest

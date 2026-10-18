@@ -95,6 +95,20 @@ const distText = (d, tx) => (d >= 1000 ? tx('module.waypoint.km', '{n} km', { n:
  *  for `tx` (the words; English by default). @param {number} d metres */
 export const distLabel = (d, tx = english) => distText(d, tx);
 
+/** Run `register` (the module's keys) only where the Clairvoyance spell cannot hold the settings: it waits a few seconds for that
+ *  module to load and finish its check (`globalThis.dfoWayfarerStatus`, at most two minutes), and registers when there is no such
+ *  module or the spell is not ready. A key that the host lets a module register late is all this needs. */
+function keysUnlessSpell(register) {
+  const t0 = performance.now();
+  const id = setInterval(() => {
+    const st = globalThis.dfoWayfarerStatus, elapsed = performance.now() - t0;
+    if (elapsed < 3000 || (st?.waiting && elapsed < 120000)) return;
+    clearInterval(id);
+    if (!st?.ready) register();
+  }, 1000);
+  id?.unref?.();
+}
+
 export default function setup(dfo) {
   /** Words in the player's language (the game's own table), else the English. */
   const tx = (/** @type {string} */ key, /** @type {string} */ en, /** @type {any} */ args = null) => (typeof dfo.t === 'function' ? dfo.t(key, en, args) : english(key, en, args));
@@ -116,6 +130,16 @@ export default function setup(dfo) {
     const css = on && mark ? diamondColour(mark.kind, look) : null;
     if (css !== tint) { tint = css; dfo.markColour?.(css === GOLD ? null : css); }   // an older host has no markColour
   }
+  // A small surface for the Clairvoyance spell's settings, which that module lists in the spell's description. Nothing else reads it.
+  (globalThis.dfoWayfarer ??= {}).waypoint = {
+    looks: LOOK_ORDER,
+    get look() { return look; },
+    set look(v) { if (WAYPOINT_LOOKS[v]) { look = v; dfo.store.set('look', look); tintCompass(); } },
+    get on() { return on; },
+    set on(v) { on = !!v; dfo.store.set('on', on); tintCompass(); },
+    word: (l) => lookWord(tx, l),
+    css: (l) => WAYPOINT_LOOKS[l]?.css ?? GOLD,
+  };
   const playing = () => performance.now() - hudSeen < HUD_LIVE_MS;
 
   let at = null;   // the diamond on the screen by the world's own perspective: { x, y, t, behind } or null
@@ -170,7 +194,7 @@ export default function setup(dfo) {
 
   function draw() {
     const { wp } = ui;
-    if (!playing() || !on || !mark) { wp.style.display = 'none'; return; }
+    if (!playing() || !on || !mark || globalThis.dfoWayfarerGate?.() === false) { wp.style.display = 'none'; return; }
     const w = innerWidth, h = innerHeight;
     const L = WAYPOINT_LOOKS[look];
     wp.style.setProperty('--c', diamondColour(mark.kind, look));
@@ -213,11 +237,14 @@ export default function setup(dfo) {
   }
   requestAnimationFrame(frame);
 
-  // keys, only while the game's HUD is up: in a menu, a dialog or a map F7 and F3 mean other things
-  dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? tx('module.waypoint.on', 'Quest waypoint on') : tx('module.waypoint.off', 'Quest waypoint off')); }, tx('module.waypoint.keyOnOff', 'Waypoint on / off'));
-  dfo.onKey('Shift+F3', () => {
-    if (!playing()) return;
-    look = LOOK_ORDER[(LOOK_ORDER.indexOf(look) + 1) % LOOK_ORDER.length];
-    dfo.store.set('look', look); tintCompass(); dfo.say(tx('module.waypoint.lookSet', 'Waypoint look: {look}', { look: lookWord(tx, look) }));
-  }, tx('module.waypoint.keyLook', 'Waypoint look'));
+  // keys, only while the game's HUD is up: in a menu, a dialog or a map F7 and F3 mean other things. Where the Clairvoyance spell is
+  // ready its page in the spellbook holds these settings (on / off, the look), so there are no keys; where it is not, they are here.
+  keysUnlessSpell(() => {
+    dfo.onKey('F7', () => { if (!playing()) return; on = !on; dfo.store.set('on', on); tintCompass(); dfo.say(on ? tx('module.waypoint.on', 'Quest waypoint on') : tx('module.waypoint.off', 'Quest waypoint off')); }, tx('module.waypoint.keyOnOff', 'Waypoint on / off'));
+    dfo.onKey('Shift+F3', () => {
+      if (!playing()) return;
+      look = LOOK_ORDER[(LOOK_ORDER.indexOf(look) + 1) % LOOK_ORDER.length];
+      dfo.store.set('look', look); tintCompass(); dfo.say(tx('module.waypoint.lookSet', 'Waypoint look: {look}', { look: lookWord(tx, look) }));
+    }, tx('module.waypoint.keyLook', 'Waypoint look'));
+  });
 }

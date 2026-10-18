@@ -20,8 +20,9 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-// a line a run in loader.log (the loader's own record: did it start, did it wrap, what did it serve)
-const LOG = path.join(__dirname, '..', 'loader.log');
+// a line a run in loader-run.log (the loader's own record: did it start, did it wrap, what did it serve). Not loader.log: the
+// launcher's stdout is redirected into that file, and its writes overwrite these lines.
+const LOG = path.join(__dirname, '..', 'loader-run.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `${new Date().toISOString()} [${process.type || 'node'} ${process.pid}] ${m}\n`); } catch { /* the record is a courtesy */ } };
 log('start');
 if (process.env.WAYFARER_INSPECT === '1') setTimeout(() => { try { require('inspector').close(); } catch { /* it closes with the game */ } }, 4000);   // the launcher's door is shut again once the game is up
@@ -164,3 +165,5 @@ protocol.handle = function handle(scheme, handler) {
 };
 if (protocol.handle === realHandle) status.errors.push('could not wrap protocol.handle; mods are off');
 log(`wrapped=${protocol.handle !== realHandle} modules=${modules.map((m) => m.dir).join(',')} hooks=${patches.map((p) => p.id).join(',')} errors=${status.errors.join(';')}`);
+// the statuses are "not found" until the scan has read every chunk, so the record is written after the scan
+health().then((s) => log(`hook scan ${JSON.stringify(s.hooks)} errors=${s.errors.join(';')} broken=${Object.entries(s.modules).map(([d, m]) => `${d}:${m.broken.join('/')}`).join(',')}`));

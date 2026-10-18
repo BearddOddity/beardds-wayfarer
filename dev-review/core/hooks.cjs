@@ -123,13 +123,18 @@ module.exports = {
     event: 'drawFx',
     optional: true,
     needle: '.worldCoords(',
-    find: /function \w+\(\)\{const \w+=(\w+)\.worldCoords\(\w+\.pos\),\w+=\{\};for\(const (\w+) of (\w+)\(\)\)\{if\(!(\w+)\(\2\.id\)\)continue;const \w+=(\w+)\(\2\.mx,\2\.my\);/,
-    replace: (m, state, _w, shown, followed, toNative, offset, whole) => {
-      const modes = /\((\w+)\?\.mode\?\?"exterior"\)==="exterior"/.exec(whole)?.[1];
+    // the distances to the followed region-map waypoints, one per waypoint (the same function in both builds); the minifier writes
+    // let/const and `$` in names from 0.1.9404 on, so the identifiers are classes, not \w
+    find: /function ([\w$]+)\(\)\{(?:const|let) ([\w$]+)=([\w$]+)\.worldCoords\([\w$]+\.pos\),([\w$]+)=\{\};for\((?:const|let) ([\w$]+) of ([\w$]+)\(\)\)\{if\(!([\w$]+)\(\5\.id\)\)continue;(?:const|let) ([\w$]+)=([\w$]+)\(\5\.mx,\5\.my\);/,
+    replace: (m, fn, _v, state, _res, _n, shown, followed, _r, toNative, offset, whole) => {
+      // the mode and the ground are read from the code NEAREST this function: a chunk holds many functions that check the mode, and
+      // the first one is another object's (0.1.9409's first check was not the world's)
+      const nearest = (re, pick) => { let best = null, bd = Infinity; for (const mm of whole.matchAll(re)) { const d = Math.abs(mm.index - offset); if (d < bd) { bd = d; best = pick(mm); } } return best; };
+      const modes = nearest(/\(([\w$]+)\?\.mode\?\?[`"]exterior[`"]\)[!=]==[`"]exterior[`"]/g, (mm) => mm[1]);
       if (!modes) return m;
-      const ground = /\w+\(\w+\.eye,\w+,\((\w+),(\w+)\)=>(\w+)\(\1,\2\)\);if\(!\w+\.point\)/.exec(whole)?.[3];
+      const ground = nearest(/[\w$]+\([\w$]+\.eye,[\w$]+,\(([\w$]+),([\w$]+)\)=>([\w$]+)\(\1,\2\)\);if\(![\w$]+\.point\)/g, (mm) => mm[3]);
       const terrain = ground ? `globalThis.dfo?.terrain?.((x,z)=>(${modes}?.mode??"exterior")!=="exterior"?NaN:${ground}(x,z));` : '';
-      return `${terrain}globalThis.dfo?.bayWays?.(()=>(${modes}?.mode??"exterior")!=="exterior"?null:${shown}().filter(w=>${followed}(w.id)).map(w=>{const n=${toNative}(w.mx,w.my),l=${state}.localFromWorld(n.x,n.z);return Object.freeze({id:w.id,name:w.name,x:l[0],z:l[1]})}));${m}`;
+      return `${terrain}globalThis.dfo?.bayWays?.(()=>{const md=(${modes}?.mode??"exterior");globalThis.dfo?.modeSeen?.(md);return md!=="exterior"?null:${shown}().filter(w=>${followed}(w.id)).map(w=>{const n=${toNative}(w.mx,w.my),l=${state}.localFromWorld(n.x,n.z);return Object.freeze({id:w.id,name:w.name,x:l[0],z:l[1]})})});${m}`;
     },
   },
   // ui/questLens.js QuestLens.look(): after each quest tick, the game's own view of every active quest (title, where, latest
@@ -151,7 +156,7 @@ module.exports = {
     needle: 'context(){return!1},homeView(',
     find: /context\(\)\{return!1\},homeView\((\w+)\)\{return (\w+)\(\1,(\w+)\(\)\)\},get field\(\)\{return (\w+)\(\)\},get plan\(\)\{return \4\(\),(\w+)\},names:(\w+),quests:(\w+),/,
     replace: (m, d, fit, player, field, plan, names, quests, offset, whole) => {
-      const view = /hoverLabel\(\w+,\w+\)\{if\((\w+)\)\{for\(const (\w+) of \w+\(\)\)\{const\[\w+,\w+\]=\w+\(\1,\2\.x,\2\.y\)/.exec(whole)?.[1];
+      const view = /hoverLabel\(\w+,\w+\)\{if\((\w+)\)\{for\((?:const|let) (\w+) of \w+\(\)\)\{(?:const|let)\[\w+,\w+\]=\w+\(\1,\2\.x,\2\.y\)/.exec(whole)?.[1];
       if (!view) return m;   // no view to read: the street plan is left as it was (the hook is reported as not applied by its count)
       return `context(){return!1},...(globalThis.dfo?.townDest?.({view:()=>${view},player:()=>${player}(),field:()=>${field}(),quests:()=>${quests}()})??{}),homeView(${d}){return ${fit}(${d},${player}())},get field(){return ${field}()},get plan(){return ${field}(),${plan}},names:${names},quests:${quests},`;
     },
@@ -190,5 +195,112 @@ module.exports = {
     needle: '.paintOverlay(',
     find: /(\w+)\.paintOverlay\((\w+),(\w+)\),this\._bandShown/,
     replace: '$1.paintOverlay($2,$3),globalThis.dfo?.paintDest?.(this,$1,$2,$3),this._bandShown',
+  },
+
+  'drawFx:spellRow': {
+    // spellEffects: the effect's row (the spellmaker lists it)
+    event: 'drawFx', optional: true,
+    needle: 'Shared Cartography',
+    find: /\[46,255,`Shared Cartography`,``,\[(\w+)\]\]/,
+    replace: (m, duration) => `${m},[47,255,\`Clairvoyance\`,\`\`,[${duration}]]`,
+  },
+  'drawFx:spellText': {
+    // spellEffects: the words the spellmaker shows for the effect
+    event: 'drawFx', optional: true,
+    needle: '`46,255`,Object.freeze([`Shared Cartography`',
+    find: /\[`46,255`,Object\.freeze\(\[`Shared Cartography`,/,
+    replace: (m) => `[\`47,255\`,Object.freeze([\`Clairvoyance\`,\`While it lasts, a thread of light is drawn along\`,\`the road to the place you seek, as your map has\`,\`marked it. By BearddOddity (Beardd's Wayfarer).\`])],${m}`,
+  },
+  'drawFx:spellList': {
+    // spellEffects: the effects a spell may carry (type,subtype tokens)
+    event: 'drawFx', optional: true,
+    needle: '.46,255.30,255.31,255.',
+    find: /\.46,255\.30,255\.31,255\./,
+    replace: '.46,255.47,255.30,255.31,255.',
+  },
+  'drawFx:spellSelf': {
+    // mysticism: the effects that are cast on oneself
+    event: 'drawFx', optional: true,
+    needle: '.44,255.46,255`.split(',
+    find: /\.44,255\.46,255`\.split\(`\.`\)\)/,
+    replace: '.44,255.46,255.47,255`.split(`.`))',
+  },
+  'drawFx:spellKind': {
+    // mysticism: the kind an active effect takes (type,subtype -> kind)
+    event: 'drawFx', optional: true,
+    needle: '"46,255":`sharedCartography`}',
+    find: /"46,255":`sharedCartography`\}/,
+    replace: '"46,255":`sharedCartography`,"47,255":`clairvoyance`}',
+  },
+  'drawFx:spellMessage': {
+    // mysticism: the line shown while the effect lasts
+    event: 'drawFx', optional: true,
+    needle: 'sharedCartography:()=>',
+    find: /sharedCartography:\(\)=>`Your map is shared with your party\.`\}/,
+    replace: 'sharedCartography:()=>`Your map is shared with your party.`,clairvoyance:()=>`The way is drawn before your eyes.`}',
+  },
+  'drawFx:spellCost': {
+    // spellcast: what the effect costs (the same as Shared Cartography's: a Mysticism effect with a duration)
+    event: 'drawFx', optional: true,
+    needle: '"46,255":',
+    find: /"46,255":([\w$]+)\(([\w$.]+),\{duration:([\w$]+)\(8,8\)\}\),/,
+    replace: (m, q, skill, k) => `${m}"47,255":${q}(${skill},{duration:${k}(8,8)}),`,
+  },
+  'drawFx:spellTown': {
+    // worldTick: the effects that need no target
+    event: 'drawFx', optional: true,
+    needle: '`44,255`,`46,255`])',
+    find: /`44,255`,`46,255`\]\)/,
+    replace: '`44,255`,`46,255`,`47,255`])',
+  },
+  'drawFx:spellMade': {
+    // arenaGate: the premade spell (as Shared Cartography's), kept for the shop below
+    event: 'drawFx', optional: true,
+    needle: 'name:`Shared Cartography`',
+    find: /function ([\w$]+)\(\)\{return ([\w$]+)\(\{slots:\[\{type:46,subType:255,settings:\{\.\.\.([\w$]+)\}\}\],rangeType:0,element:4,name:`Shared Cartography`,icon:21,index:([\w$]+)\}\)\}/,
+    replace: (m, f, make, settings) => `${m}globalThis.dfoClairvoyance=()=>${make}({slots:[{type:47,subType:255,settings:{...${settings}}}],rangeType:0,element:4,name:\`Clairvoyance\`,icon:21,index:-47001});`,
+  },
+  'drawFx:spellShop': {
+    // arenaGate: the Mages Guild spell shop offers it beside Shared Cartography
+    event: 'drawFx', optional: true,
+    needle: 'guildServiceSpellbook',
+    find: /\.\.\.([\w$]+)\(\)\?\[([\w$]+)\(\),([\w$]+)\(\)\]:\[\]/,
+    replace: (m, d, a, b) => `...${d}()?[${a}(),${b}(),...(globalThis.dfoClairvoyance?[globalThis.dfoClairvoyance()]:[])]:[]`,
+  },
+  'drawFx:spellIconBox': {
+    // worldTick: the spell icon for the hotbar, the quickslot and the drag ghost (`{ src, w, h }` for an image). Icon 200 is the
+    // Clairvoyance sprite the module hands over (`globalThis.dfoSpellIcon.image(box)`); every other icon is the game's own.
+    event: 'drawFx', optional: true,
+    needle: 'spellicon${',
+    find: /(function ([\w$]+)\(([\w$]+),\{box:([\w$]+),dpr:[\w$]+=[\w$]+\(\),onReady:[\w$]+=null\}=\{\}\)\{)(let [\w$]+=[\w$]+\(\3\);return [\w$]+\?[\w$]+\(`spellicon)/,
+    replace: (m, head, fn, icon, box, rest) => `${head}if(${icon}===200&&globalThis.dfoSpellIcon)return globalThis.dfoSpellIcon.image(${box});${rest}`,
+  },
+  'drawFx:spellIconFrame': {
+    // worldTick: the spell icon as a frame of pixels, for the classic windows (the same sprite, in the same way)
+    event: 'drawFx', optional: true,
+    needle: '`ICON00I0.IMG`,',
+    find: /(function ([\w$]+)\(([\w$]+)\)\{)(let ([\w$]+)=([\w$]+)\(\3\|0\);return \5\?([\w$]+)\(`ICON00I0\.IMG`,\5,2\):null\})/,
+    replace: (m, head, fn, icon, rest) => `${head}if((${icon}|0)===200&&globalThis.dfoSpellIcon)return globalThis.dfoSpellIcon.frame;${rest}`,
+  },
+  'drawFx:spellCaster': {
+    // deepWaterRuntime: the spell controller (readySpell, recastSpell, ...) hangs on `globalThis.dfoCaster`, with the player's entity
+    // beside it, so the clairvoyance module can give the player its spell once (as the game's vampirism and lycanthropy give theirs)
+    event: 'drawFx', optional: true,
+    needle: 'recastSpell(){return!',
+    find: /return\{readySpell:([\w$]+),recastSpell\(\)\{return!([\w$]+)\|\|([\w$]+)\|\|([\w$]+)\(\)\?!1:([\w$]+)\(([\w$]+)\)\?/,
+    replace: (m, ready, a, b, c, hasBook, entity) => `return globalThis.dfoCaster={playerEntity:()=>${entity},readySpell:${ready},recastSpell(){return!${a}||${b}||${c}()?!1:${hasBook}(${entity})?`,
+  },
+  'drawFx:spellPanel': {
+    // enhancedSpellbook: the spell's detail view gives the module a place to add its own settings under the effects
+    // (`globalThis.dfoSpellPanel(spell, detailElement, redraw)`), drawn each time the view is built
+    event: 'drawFx', optional: true,
+    needle: '`sb-acts`',
+    find: /\}let ([\w$]+)=([\w$]+)\(`div`,`sb-acts`\),([\w$]+)=\2\(`button`,`act primary`,`Ready`\)/,
+    replace: (m, acts, el, ready, offset, whole) => {
+      const sel = /let ([\w$]+)=([\w$]+)\[([\w$]+)\],([\w$]+)=([\w$]+)\(`div`,`px-qdetail`\)/.exec(whole);
+      const draw = /function ([\w$]+)\(\)\{if\(!([\w$]+)\)return;\2\.innerHTML=``/.exec(whole);
+      if (!sel || !draw) return m;
+      return `}globalThis.dfoSpellPanel?.(${sel[1]}.spell,${sel[4]},${draw[1]});${m.slice(1)}`;
+    },
   },
 };

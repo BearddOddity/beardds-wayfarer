@@ -150,6 +150,7 @@
       },
       /** The host's side: a keydown. Every enabled module action whose key (the player's, else its own) it is runs. Answers whether one did. @param {any} e */
       pressKey(e) {
+        if (!KEY_BINDS_ON) return false;
         const spec = keysHeld ? null : keySpec(e);
         if (!spec) return false;
         const own = ownKeys();
@@ -404,6 +405,10 @@
 
   // ../daggerfall-js-source/src/mods/keysPanel.js
   var KEYS_PANEL_KEY = "Shift+F1";
+  // THE KEYS SWITCH: off, the keys panel (Shift+F1) does not open and no module key answers. The code stays, so the switch can be
+  // turned back on. Modules still register their actions; they simply never fire from a key. Clairvoyance is cast from the
+  // hotbar or spellbook, not from a key.
+  var KEY_BINDS_ON = false;
   var RESERVED = /^(Shift\+)?(Escape|Tab|Enter|Backspace|NumpadEnter)$/;
   var GAME_LIKELY = /^(Key[A-Z]|Digit\d|Arrow\w+|Space)$/;
   function keyName(spec) {
@@ -551,7 +556,7 @@
     open = { close };
   }
   function installModuleKeys(bus2, o) {
-    if (typeof addEventListener !== "function") return;
+    if (!KEY_BINDS_ON || typeof addEventListener !== "function") return;
     addEventListener("keydown", (e) => {
       if (keySpec(e) === KEYS_PANEL_KEY && !open && bus2.keys().length) {
         e.preventDefault();
@@ -632,6 +637,42 @@
   }
   var waysOf = null;
   var terrainOf = null;
+  var dungeonNow = false;
+  var modeSeen = (m) => {
+    dungeonNow = m === "dungeon";
+  };
+  var tierCache = { at: -1e9, tier: "journal" };
+  function guidanceTier() {
+    const now = performance.now();
+    if (now - tierCache.at < 1e3) return tierCache.tier;
+    let tier = "journal";
+    try {
+      const raw = globalThis.daggerShell?.storage?.getItem?.("dagger.ui.v1") ?? globalThis.localStorage?.getItem?.("dagger.ui.v1") ?? null;
+      const v = raw ? JSON.parse(raw)?.questGuidance : null;
+      if (v === "town" || v === "exact") tier = v;
+    } catch {
+      tier = "journal";
+    }
+    tierCache = { at: now, tier };
+    return tier;
+  }
+  var questHidden = () => dungeonNow && guidanceTier() !== "exact";
+  var questFor = (quest) => bus.retarget(null) ?? (questHidden() ? null : quest);
+  function dungeonNotes() {
+    if (!dungeonNow) return [];
+    let rec = null;
+    try {
+      rec = recOf?.() ?? null;
+    } catch {
+      rec = null;
+    }
+    const out = [];
+    for (const n of rec?.notes?.values?.() ?? []) {
+      const p = n?.position;
+      if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) out.push({ x: p[0], z: p[2], y: p[1] });
+    }
+    return out;
+  }
   function world(collider) {
     if (!collider || typeof collider.raycast !== "function") return void 0;
     let p = probes.get(collider);
@@ -658,6 +699,15 @@
         },
         known() {
           return knownCopy();
+        },
+        inDungeon() {
+          return dungeonNow;
+        },
+        questHidden() {
+          return questHidden();
+        },
+        notes() {
+          return dungeonNotes();
         },
         waypoints() {
           try {
@@ -863,7 +913,7 @@
     ctx.stroke();
     ctx.restore();
   }
-  globalThis.dfo = { emit: (event, ...args) => {
+  globalThis.dfo = { modeSeen, emit: (event, ...args) => {
     if (bus.has(event)) bus.emit(event, ...args);
   }, world, retarget: (q) => bus.retarget(q), townDest, planDest, mapContext, paintDest, notePin, knownRec: (fn) => {
     recOf = fn;
