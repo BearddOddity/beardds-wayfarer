@@ -54,7 +54,7 @@ Do not put the mod's folder inside its own `Mods` folder, and do not nest it dee
    folder. The result is a folder called `beardds-wayfarer-<version>`. Rename it to `Beardd's Wayfarer` if you like; the name
    does not matter to the mod.
 3. **Start DFO Online once** from its own shortcut, then close it. This creates the folder the mod installs into.
-4. **Double-click `Install.cmd`** in the mod's folder. It copies the three module folders into the game's data folder and says
+4. **Double-click `Install.cmd`** in the mod's folder. It copies the five module folders into the game's data folder and says
    where they went. It does not change the game's own files.
 5. **Double-click `Play Wayfarer.cmd`** to start the game with the mod. Press **PLAY** in the game's launcher as usual.
 
@@ -86,11 +86,13 @@ Your own pins, destinations and region-map waypoints work with any quest setting
 
 ## Check that it runs
 
-1. Open **Settings > Mods & files > Modules**. You should see three rows, each **running**:
+1. Open **Settings > Mods & files > Modules**. You should see five rows, each **running**:
+   - Beardd's Wayfarer: Clairvoyance
    - Beardd's Wayfarer: guide trail
+   - Beardd's Wayfarer: mod notice
    - Beardd's Wayfarer: pins
    - Beardd's Wayfarer: quest waypoint
-2. In the game, press **F7**. The game says "Quest waypoint off". Press it again to turn it back on.
+2. In the game, open the spellbook. **Clairvoyance** should be there, from the **Beardd's Spells** pack. Cast it: the line over the game says which map registered (or "No direct path found" when you have not marked a place yet).
 
 A row that says **refused** gives the reason. The usual ones are in [Troubleshooting](troubleshooting.md).
 
@@ -129,7 +131,7 @@ The usual order is `Install.cmd` once, then `Play Wayfarer.cmd` each time you pl
 ## Update
 
 1. Download the new zip and extract it over the old folder, or to a new folder in the same place.
-2. Double-click **`Install.cmd`**. It replaces the three module folders with clean copies.
+2. Double-click **`Install.cmd`**. It replaces the five module folders with clean copies.
 3. Double-click **`Play Wayfarer.cmd`**.
 
 ## Uninstall

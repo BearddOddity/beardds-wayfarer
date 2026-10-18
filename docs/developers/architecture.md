@@ -1,6 +1,6 @@
 # Architecture
 
-Beardd's Wayfarer is three **modules** written against the game's **Mod API**. The Mod API is a small change to the game's
+Beardd's Wayfarer is five **modules** written against the game's **Mod API**. The Mod API is a small change to the game's
 client (in [game-integration](../../game-integration/README.md)). Until the game ships it, a **dev-review loader** gives the
 released client the same API from outside.
 
@@ -24,12 +24,12 @@ released client the same API from outside.
                         ^ module folders read from <user data>/Mods/<id>/
 ```
 
-## The three parts
+## The parts
 
 | Part | Where | What it is |
 | --- | --- | --- |
 | **The Mod API** | the game's source: `src/mods/` (patches in `game-integration/`) | the bus, the host that loads modules, the keys panel, the Modules card, and the event seams in the game's code |
-| **The mod** | `Mods/` (built), `source/` (source) | three module folders: `waypoint`, `guide-trail`, `pins` |
+| **The mod** | `Mods/` (built), `source/` (source) | five module folders: `clairvoyance`, `waypoint`, `guide-trail`, `pins`, `notice` |
 | **The dev-review loader** | `dev-review/` | runs the game's own Mod API on today's released client, by patching the served code in memory |
 
 The modules are the same files in both cases. A module cannot tell whether the game or the loader hosts it.
@@ -58,7 +58,7 @@ The modules are the same files in both cases. A module cannot tell whether the g
 - **Client-side only.** The bus carries nothing to the server. No wire changes, no new network door.
 - **Failures are contained.** A throwing listener is caught and named once; after 25 failures its module is switched off for
   the session. The frame and every other module go on.
-- **Keys belong to the player.** A module names a default; the player can move it (Shift+F1). Keys only work while the HUD
+- **Keys belong to the player.** A module names a default; the player can move it (Shift+F1). Since 1.5.0 the whole keys system is off by one switch (`KEY_BINDS_ON` in `dev-review/core/core.js`). Keys only work while the HUD
   draws, so they never fire in a menu.
 
 ## Where the code lives

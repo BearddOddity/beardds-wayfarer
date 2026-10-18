@@ -1,17 +1,39 @@
 # The modules, inside
 
-Four folders. Each lives with or without the others, and none reads another: they meet only at the compass's mark
-(`questMark`), which pins can move with `dfo.retarget`.
+Five folders. Each lives with or without the others, and none reads another: they meet only at the compass's mark
+(`questMark`), which pins can move with `dfo.retarget`. The one exception is Clairvoyance, which reads two small surfaces the other
+modules offer (`globalThis.dfoWayfarer`, below).
 
-| Module | Listens to | Keys | Source |
+| Module | Listens to | Keys (all off since 1.5.0) | Source |
 | --- | --- | --- | --- |
+| `clairvoyance` | `questMark`, `drawFx` | Shift+1, 2, 3 (direct casts) | `source/clairvoyance/module.js` (one file) |
 | `waypoint` | `questMark`, `drawFx` | F7, Shift+F3 | `source/waypoint/module.js` (one file) |
 | `guide-trail` | `questMark`, `drawFx` | F4, Shift+F4 | `source/guide-trail/src/` (bundled into `module.js`) |
-| `pins` | `mapPick`, `questMark`, `drawFx` | F2, F3, Shift+F2 | `source/pins/module.js` (one file) |
+| `pins` | `mapPick`, `questMark`, `drawFx` | F1, F3, Shift+F2 | `source/pins/module.js` (one file) |
 | `notice` | `drawFx` | F6 | `source/notice/module.js` (one file) |
+
+**Keys are off since 1.5.0.** One switch, `KEY_BINDS_ON` in `dev-review/core/core.js`, turns off both the keys panel (Shift+F1)
+and every module key (`pressKey` answers nothing, `installModuleKeys` installs nothing). Modules still register their actions with
+`dfo.onKey`; they never fire. Set the switch to `true` to bring the keys back. A cast of the spell, from the hotbar or the
+spellbook, is how a player works the mod now.
 
 Every key works only while the HUD drew in the last 400 ms (`HUD_LIVE_MS`): `questMark` is the HUD's heartbeat, and a menu,
 a dialog, a map or a loading screen stops it.
+
+## clairvoyance
+
+A real spell of the game's own magic: an effect ("Clairvoyance", type 47, with a duration) that the loader adds to the game's
+spell system through the `drawFx:spell*` hooks in `dev-review/core/hooks.cjs` (a row, text, list, self, kind, message, cost, town,
+made, shop, icon box, icon frame, caster and panel hook; all optional). The module gives the player the spell once, on first load,
+from the **Beardd's Spells** pack, and checks it every load (`globalThis.dfoWayfarerStatus`: `{ ready, waiting, reason }`).
+
+- **The cast** swaps the compass to the mark of one of three maps (Town and City, Region, Dungeon): a plain cast follows the map
+  the player stands in (`pins.here()`), or the map the spell's page names; the nearest mark is followed (`pins.follow(map)`). The
+  line over the game says which registered, or "No direct path found" when the map holds no mark.
+- **The gate:** `globalThis.dfoWayfarerGate()` is asked by the waypoint and the guide trail before they draw. With no castable
+  spell it is always open; the spell's page can make it open only while the effect lasts, or after a cast.
+- **The surfaces:** `globalThis.dfoWayfarer.pins` (`marks()`, `here()`, `follow(map)`), `.waypoint` and `.trail` (their looks and
+  on/off), `.notice`. Nothing else reads them.
 
 ## waypoint
 
@@ -91,6 +113,9 @@ follows (`active`: a pin's index, `QUEST`, `OUT` for the exit, or `'wp:<id>'`).
   it, never to the exit. Anything else is the one map destination (a new click replaces it).
 - **Region-map waypoints:** `world.waypoints()` every frame. A newly followed id is followed at once ("Following ... - X m");
   one unfollowed on the map is let go. A waypoint followed when the player goes inside is taken up again outside.
-- **F2** casts `world.ray` along the camera's forward (up to 120 m); a hit puts the pin 0.3 m short of it, a miss 25 m ahead
+- **F1** (off) casts `world.ray` along the camera's forward (up to 120 m); a hit puts the pin 0.3 m short of it, a miss 25 m ahead
   along the ground.
-- **F3** cycles `[quest, exit?, ...pins, ...waypoints not put aside]`.
+- **F3** (off) cycles `[quest, exit?, ...pins, ...waypoints not put aside]`.
+- **Dungeon pins:** `world.notes()` (the game's own pins on the dungeon map, read from the automap record) are synced into the
+  pins each frame while `world.inDungeon()`; a pin the game no longer keeps is dropped. `world.questHidden()` hides the quest
+  from the cycle in a dungeon below Exact guidance.

@@ -25,6 +25,9 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
 
 ## 2. Keys
 
+> Since 1.5.0 the keys system is switched off (`KEY_BINDS_ON = false` in `dev-review/core/core.js`): no module key answers and the
+> keys panel does not open. The items below apply when the switch is on.
+
 - [ ] Module keys: F2, F3, F4, F7 and Shift with F2, F3, F4. None is a gameplay default (`src/systems/inputActions.js`);
       a test fails on a clash.
 - [ ] Every module key does nothing unless the HUD drew in the last 400 ms (menus, dialogs, maps use F1-F8 themselves).

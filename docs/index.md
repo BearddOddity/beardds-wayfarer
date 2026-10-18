@@ -16,7 +16,7 @@ Start here. Each page is short and stands on its own.
 | Page | Read it to... |
 | --- | --- |
 | [Putting the Mod API into the game](../game-integration/README.md) | apply the patches, test them and ship them (the instructions for the DFO Online team) |
-| [Architecture](developers/architecture.md) | see how the parts fit: the Mod API, the three modules, the dev-review loader |
+| [Architecture](developers/architecture.md) | see how the parts fit: the Mod API, the five modules, the dev-review loader |
 | [The Mod API](developers/mod-api.md) | write a module: the manifest, the events, the handle, the world probe |
 | [The modules](developers/modules.md) | understand how the waypoint, the guide trail and pins work inside |
 | [The dev-review loader](../dev-review/README.md) | run the mod on today's released game, and understand its hooks and its risks |
@@ -42,7 +42,7 @@ Beardd's Wayfarer/
 
 | Word | Means |
 | --- | --- |
-| **Module** | One folder in the game's `Mods` folder: a `module.json` (its name and what it listens to) and a `module.js` (its code). The mod is three modules. |
+| **Module** | One folder in the game's `Mods` folder: a `module.json` (its name and what it listens to) and a `module.js` (its code). The mod is five modules. |
 | **Mod API** | The small, stable interface the game offers modules: events (what the game tells a module) and a handle (what a module may ask). |
 | **The compass's mark** | The diamond on the game's compass strip. The mod's waypoint and trail lead to whatever the compass marks. |
 | **Place** | Something you follow instead of the quest: a pin, a destination, the exit, or a region-map waypoint. |

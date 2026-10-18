@@ -2,13 +2,15 @@
 
 **An accessibility mod for DFO Online (Daggerfall Online) that helps you find your way.**
 
-Daggerfall's world is huge, and its quest text often gives no directions. Beardd's Wayfarer shows you where to go:
+Daggerfall's world is huge, and its quest text often gives no directions. Beardd's Wayfarer shows you where to go. Since 1.5.0
+it works as a spell: **Clairvoyance**, in your spellbook, from the **Beardd's Spells** pack. Cast it and the compass swings to a
+mark on the **Town and City**, **Region** or **Dungeon** map, and the mod shows you the way:
 
 - a **waypoint** diamond in the world over the place you are heading for, with the distance;
 - a **guide trail** of glowing embers along the way there: round walls, up hills and stairs, and between a dungeon's floors;
-- **pins and destinations** you set yourself: on the town map, on a dungeon map, on the region map, or where you look.
+- **pins and destinations** you set yourself: on the town map, on a dungeon map, or on the region map.
 
-It runs only in your own game client. Nothing is sent to the server, and every key can be changed.
+It runs only in your own game client. Nothing is sent to the server.
 
 > **Status: in review with the DFO Online developers.** The mod is written for the game's **Mod API**, which is not in the
 > released game yet. Until it is, the mod runs on the released game only through the [developer loader](dev-review/README.md).
@@ -22,43 +24,54 @@ It runs only in your own game client. Nothing is sent to the server, and every k
 | **Low vision** | High-visibility looks, a large waypoint, and ember pools that stay visible on pale and snowy floors. | About 95% |
 | **Colour blindness** | Each kind of mark has its own Okabe-Ito colour, always with a word ("Pin", "Destination", "Exit", "Waypoint"). | About 85% |
 | **Dyslexia and attention** | A plain distance ("420 m") replaces dense reading. | Done |
-| **Limited reach / one hand** | Every key can be moved to any key you like (Shift+F1). | Under review |
-| **Screen-reader and keyboard users** | The keys panel is a labelled dialog. Tab, Enter and Escape work, and each result is read out. | Done |
+| **Limited reach / one hand** | Clairvoyance is cast from the hotbar or the spellbook, with no key to hold. (The module keys and the keys panel are off for now.) | Under review |
+| **Screen-reader and keyboard users** | Results show as a line over the game, and the notice line is a labelled status. The keys panel (a labelled dialog) is off for now. | Partly |
 
 ## Quick start
 
 1. Install: read [Installing and running](docs/players/install.md) for where to put the mod's folder (beside the game, or inside it), then double-click **`Install.cmd`** (once, and again after each update).
 2. Play: double-click **`Play Wayfarer.cmd`**. It starts the game with the mod.
-2. In the game's **Features** menu: use the **Enhanced** skin, turn on **Quest marks** and the **Quest tracker**, and set
+3. In the game's **Features** menu: use the **Enhanced** skin, turn on **Quest marks** and the **Quest tracker**, and set
    **Quest guidance** to **Exact**.
-3. Play. Track a quest, or right-click a map to set a destination.
+4. Play. Track a quest, or mark a map (below), then cast **Clairvoyance** from the hotbar or the spellbook.
 
 The full guide is in [docs/players/using.md](docs/players/using.md). To remove the mod, double-click **`Uninstall.cmd`**.
 
-## Keys
+## Casting Clairvoyance
 
-Keys work only while you are playing (never in a menu, a dialog or a map). Press **Shift+F1** to change any of them.
+Clairvoyance is in your spellbook from the first load, with its own icon. Cast it and the compass swings to a mark on one of
+three maps. The message reads, for example, "Clairvoyance: Dungeon - Pin, 12 m". "No direct path found" means the map holds no
+mark yet.
 
-| Key | Does |
+| Map | Marks it holds |
 | --- | --- |
-| **F7** | Waypoint on / off |
-| **Shift+F3** | Waypoint look: gold, ivory, cyan, magenta, large (the compass's diamond takes the same colour) |
-| **F4** | Guide trail on / off |
-| **F6** | Mod notice on / off: the "Beardd's Wayfarer active" line at the start of a game |
-| **Shift+F4** | Trail look: gold, ivory, cyan, magenta, large |
-| **F1** | Drop a pin where you look (up to 8) |
-| **F3** | Follow the next place: the quest, the exit, your pins and destinations, your region-map waypoints |
-| **Shift+F2** | Remove the place you are following |
-| **Shift+F1** | Change the keys |
-| Right-click the **town** or **dungeon map** | Set a destination there (on a quest ring: the quest's location; on the dungeon's exit: the way out) |
-| Middle-click the **dungeon map** | The map's own pin: name it, and it is followed on its own floor |
-| **Follow** on the **region map** | The trail leads you to that waypoint outdoors |
+| **Town and City** | A destination you set on the town map, or a quest's location |
+| **Region** | A waypoint you followed on the region map |
+| **Dungeon** | The exit, and the pins and destinations you set on the dungeon map |
+
+A plain cast uses **Automatic**: the map you are standing in. The Clairvoyance page in the spellbook holds the lore and the
+settings: when the waypoint and the guide trail show (always, only while the spell lasts, or cast to turn on), which map a plain
+cast follows, and the colours.
+
+## Marking the maps
+
+| Do | Result |
+| --- | --- |
+| Right-click the **town map** (M) | A destination there (on a quest ring: the quest's location). Right-click the flag to remove it. |
+| Right-click the **dungeon map** (flat map) | A destination there. Right-click the exit mark for the way out. |
+| Middle-click the **dungeon map** | The map's own pin: name it, and cast to it. Clear its name to remove it. |
+| **Follow** on the **region map** (V) | The trail leads you to that waypoint outdoors. |
+
+## Keys are off for now
+
+The Shift+F1 keys panel and every module key are disabled (the waypoint, trail and notice keys, pin dropping, and the cycle
+through places). The code stays, so they can come back. Cast Clairvoyance from the hotbar or spellbook.
 
 ## What is in this repository
 
 | Folder | What it is | Who it is for |
 | --- | --- | --- |
-| [`Mods/`](Mods) | **The mod itself**: three module folders, ready to install | Players |
+| [`Mods/`](Mods) | **The mod itself**: five module folders (Clairvoyance, quest waypoint, guide trail, pins, mod notice), ready to install | Players |
 | `Install.cmd`, `Uninstall.cmd` | Install the mod (run again to update), and take it out cleanly ([`tools/`](tools)) | Players |
 | [`docs/`](docs/index.md) | All the documentation. **Start at [docs/index.md](docs/index.md).** | Everyone |
 | [`game-integration/`](game-integration/README.md) | The Mod API for the game, as one patch, with instructions for putting it into the game | Developers |

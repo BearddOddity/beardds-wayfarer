@@ -4,6 +4,6 @@
   "version": "1.4.0",
   "api": 1,
   "author": "Beardd (BearddOddity)",
-  "description": "A small line at the top of the view for a few seconds when a game starts: \"Beardd's Wayfarer active\". F6 on/off.",
+  "description": "A small line at the top of the view for a few seconds when a game starts: \"Beardd's Wayfarer active\".",
   "events": ["drawFx"]
 }

@@ -706,6 +706,20 @@ var MARK_FRESH_MS = 600;
 var HUD_LIVE_MS = 400;
 var JUMP_M = 25;
 var english = (_key, en, args = null) => en.replace(/\{(\w+)\}/g, (m, k) => args && Object.hasOwn(args, k) ? String(args[k]) : m);
+/** Run `register` (the module's keys) only where the Clairvoyance spell cannot hold the settings: it waits a few seconds for that
+ *  module to load and finish its check (`globalThis.dfoWayfarerStatus`, at most two minutes), and registers when there is no such
+ *  module or the spell is not ready. */
+function keysUnlessSpell(register) {
+  const t0 = performance.now();
+  const id = setInterval(() => {
+    const st = globalThis.dfoWayfarerStatus, elapsed = performance.now() - t0;
+    if (elapsed < 3000 || (st?.waiting && elapsed < 120000)) return;
+    clearInterval(id);
+    if (!st?.ready) register();
+  }, 1000);
+  id?.unref?.();
+}
+
 function setup(dfo) {
   const tx = (key2, en, args = null) => typeof dfo.t === "function" ? dfo.t(key2, en, args) : english(key2, en, args);
   const lookWord = (look2) => ({
@@ -767,7 +781,7 @@ function setup(dfo) {
     if (!eye) return;
     const feet = [eye[0], eye[1] - EYE_M, eye[2]];
     jumped(feet);
-    if (!on) return;
+    if (!on || globalThis.dfoWayfarerGate?.() === false) return;   // Clairvoyance (if installed) may close the gate
     if (fxRenderer !== renderer) {
       try {
         fx?.dispose();
@@ -778,20 +792,32 @@ function setup(dfo) {
     }
     fx.draw(wayToMark(feet, world), feet, { style: GUIDE_STYLES[look] });
   });
-  dfo.onKey("F4", (e) => {
-    if (!playing()) return;
-    e.preventDefault?.();
-    on = !on;
-    dfo.store.set("on", on);
-    dfo.say(on ? tx("module.guideTrail.on", "Guide trail on") : tx("module.guideTrail.off", "Guide trail off"));
-  }, tx("module.guideTrail.keyOnOff", "Guide trail on / off"));
-  dfo.onKey("Shift+F4", (e) => {
-    if (!playing()) return;
-    e.preventDefault?.();
-    look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
-    dfo.store.set("look", look);
-    dfo.say(tx("module.guideTrail.lookSet", "Guide trail look: {look}", { look: lookWord(look) }));
-  }, tx("module.guideTrail.keyLook", "Guide trail look"));
+  // The Clairvoyance spell's page holds these settings (on / off, the look): the keys are only for where that spell is not ready.
+  keysUnlessSpell(() => {
+    dfo.onKey("F4", (e) => {
+      if (!playing()) return;
+      e.preventDefault?.();
+      on = !on;
+      dfo.store.set("on", on);
+      dfo.say(on ? tx("module.guideTrail.on", "Guide trail on") : tx("module.guideTrail.off", "Guide trail off"));
+    }, tx("module.guideTrail.keyOnOff", "Guide trail on / off"));
+    dfo.onKey("Shift+F4", (e) => {
+      if (!playing()) return;
+      e.preventDefault?.();
+      look = GUIDE_STYLE_ORDER[(GUIDE_STYLE_ORDER.indexOf(look) + 1) % GUIDE_STYLE_ORDER.length];
+      dfo.store.set("look", look);
+      dfo.say(tx("module.guideTrail.lookSet", "Guide trail look: {look}", { look: lookWord(look) }));
+    }, tx("module.guideTrail.keyLook", "Guide trail look"));
+  });
+  // A small surface for the Clairvoyance spell's settings, which that module lists in the spell's description. Nothing else reads it.
+  (globalThis.dfoWayfarer ??= {}).trail = {
+    looks: GUIDE_STYLE_ORDER,
+    get look() { return look; },
+    set look(v) { if (GUIDE_STYLES[v]) { look = v; dfo.store.set('look', look); } },
+    get on() { return on; },
+    set on(v) { on = !!v; dfo.store.set('on', on); },
+    word: lookWord,
+  };
 }
 export {
   setup as default

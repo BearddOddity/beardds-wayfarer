@@ -11,8 +11,8 @@ directions are hard to follow. A compass needle alone is not enough for many peo
 | **Low vision** | The compass mark is small; gold is lost on snow and pale stone | Five looks for the waypoint and the trail, including a large one. Ember pools stay visible on bright floors. The compass mark can take the trail's bright colour. | About 95% |
 | **Colour blindness** | Gold and orange are hard to tell from the ground; marks that differ only by colour | Each kind of place has an Okabe-Ito colour (a palette colour-blind players can tell apart) **and a word**: "Pin", "Destination", "Exit", "Waypoint". Cyan and magenta looks. | About 85% |
 | **Dyslexia, memory or attention difficulties** | Long directions in quest text are hard to hold in mind | The trail and the distance replace reading. "420 m" says how far, and nothing more. Short, plain messages. | Done |
-| **One hand, or limited reach** | F-keys may be out of reach, or clash with your own setup | Every action can be moved to any key (Shift+F1). | Under review |
-| **Screen-reader or keyboard user** | Pop-up panels that need a mouse | The keys panel is a labelled dialog. Tab, Enter and Escape work, and each result is read out. | Done |
+| **One hand, or limited reach** | F-keys may be out of reach, or clash with your own setup | Clairvoyance is cast from the hotbar or the spellbook, so no key is needed. The module keys and the keys panel are off for now. | Under review |
+| **Screen-reader or keyboard user** | Pop-up panels that need a mouse | Results show as a line over the game, and the notice line is a labelled status. The keys panel (a labelled dialog) is off for now. | Partly |
 | **Anyone in a town or a dungeon** | "Go to the inn" with no way to mark it | Right-click the town map or the dungeon map to set a destination. | Done |
 
 ## Design rules the mod keeps

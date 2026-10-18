@@ -19,12 +19,12 @@ did not run the loader; run it again.
 
 Check these in order:
 
-1. **Is the mod running?** Settings > Mods & files > Modules: the three rows should say **running**.
+1. **Is the mod running?** Settings > Mods & files > Modules: the five rows should say **running**.
 2. **Are you playing, not in a menu?** The waypoint and trail hide in menus, dialogs, maps and loading screens.
 3. **Does the compass mark anything?** Look at the compass strip at the top. No diamond there means the game marks nothing,
    so the mod has nothing to lead to. Track a quest (Quest tracker on, Quest marks on), or set your own place: right-click
-   the map, or press **F1**.
-4. **Is it switched off?** Press **F7** (waypoint) or **F4** (trail). The game says "on" or "off".
+   the town or dungeon map, or middle-click a dungeon map to pin a spot, then cast **Clairvoyance**.
+4. **Is it switched off, or is the spell hiding it?** Open the Clairvoyance page in the spellbook. If **When the waypoint and the guide trail show** is **Only while it lasts** or **Cast to turn on**, the path shows only after a cast.
 5. **Is the quest's town unknown to your map?** Then the compass waits by design. Open the region map: the quest's town is
    highlighted. Follow a waypoint there.
 
@@ -41,9 +41,14 @@ wants that person (for example, you must come back to them later). Check the jou
 
 ## A key does nothing
 
-- Keys work only while you are playing. Close the map or menu first.
-- You may have changed it: press **Shift+F1** to see every action and its key.
-- Ctrl, Alt and the Windows key are ignored with module keys, and a held-down key does not repeat.
+The keys panel (Shift+F1) and every module key are **off for now**, so no key does anything. Cast Clairvoyance from the hotbar
+or the spellbook, and mark places on the maps with the clicks in [Using the mod](using.md).
+
+## The spell says "No direct path found"
+
+The map the cast chose holds no mark. Mark a place on that map first: right-click the town map, middle-click or right-click the
+dungeon map, or **Follow** a waypoint on the region map. Then cast again. A plain cast uses the map you are standing in; the
+Clairvoyance page can fix it to the Town and City, Region or Dungeon map.
 
 ## The Modules card says "refused"
 
