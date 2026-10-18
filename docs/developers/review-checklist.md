@@ -20,7 +20,7 @@ A point-by-point list for reviewing Beardd's Wayfarer and its Mod API. Tick each
       size-capped; nothing past them.
 - [ ] **Seams:** each event is announced at its seam, pinned by source in the tests: `enhancedHud` (questMark), `hostMagic`
       (drawFx), `questBridge` (quests), `heldMap` (mapPick). An event nobody listens to costs one `has()` lookup.
-- [ ] **Words:** `dfo.t(key, en, args)` reads the game's `t`; English where there is no row, or no text core. Every word the three modules show goes through it (a test reads them).
+- [ ] **Words:** `dfo.t(key, en, args)` reads the game's `t`; English where there is no row, or no text core. Every word the five modules show goes through it (a test reads them).
 - [ ] **Client-side only:** `modApi.js` imports nothing of `net/`; no wire or relay change.
 
 ## 2. Keys
