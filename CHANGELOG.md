@@ -2,6 +2,17 @@
 
 Each release of Beardd's Wayfarer. Install a new one by running `Install.cmd` again: your settings, looks and keys stay.
 
+## 1.5.1 - 2026-10-21: Hotfix for DFO Online 0.1.10435
+
+A game update broke the mod in two places. This hotfix repairs both. Run `Install.cmd` again (or `./install.sh`) and restart the game with Play Wayfarer.
+
+- **Fixed: the spellbook did not respond.** The game's own spellbook code now uses the same name for two things. The mod's spellbook hook read the wrong one and the spellbook failed every time it drew, for every spell. The hook now picks a name the game does not reuse, and skips itself if none is safe, so a future rename cannot freeze the spellbook again.
+- **Fixed: pins did not work on the town map or the dungeon map.** The game added a find-me crosshair to its map windows, which moved the code the loader patches. Right-click destinations and the pin flag work again.
+- **Fixed: a memory leak in the guide trail.** Its route memory only cleared on a teleport or a new scene, so a long walk in one place made it grow without limit. It now starts over past 100,000 remembered cells. The guide trail is now 1.3.1.
+- **New: Linux and macOS.** `play-wayfarer.sh`, `install.sh`, `uninstall.sh` and `dev-review/check-hooks.sh` do what the `.cmd` files do. They find the game as a macOS app, a Linux AppImage or an unpacked folder. Tested on Windows only; the finder was run against fake Linux and macOS layouts, the scripts themselves have not run on those systems. See `docs/players/install.md`.
+- Built for DFO Online 0.1.10435.
+- Not yet: the quest-person marks (a person's building in the quest journal) still do not match this game build.
+
 ## 1.5.0 - 2026-10-18: Clairvoyance, the spell
 
 Beardd's Wayfarer now works like a spell. **Clairvoyance** is a real spell in your spellbook, given once on first load, with its own icon. Cast it and the compass swings to the mark of the town and city, the region or the dungeon: by where you stand, or directly from the map you choose. Its page in the spellbook holds the lore and every setting: when the waypoint and trail show (always, only while the spell lasts, or cast to turn on), which map a plain cast follows, and the waypoint, trail and colours.
