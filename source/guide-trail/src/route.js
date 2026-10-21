@@ -11,6 +11,7 @@ const WAIST = 0.9;         // the rays' height over the feet (m)
 const SIDE = 0.35;         // the rays either side of the centre line (m)
 const WINDOW_M = 45;       // the plan reaches this far toward a farther goal
 const MAX_EXPAND = 3000;
+const CACHE_MAX = 100000;  // cells remembered per cache; they used to clear only on a jump or a new scene, so a long walk grew them for good
 const BUDGET_MS = 6;
 const WEIGHT = 1.6;        // >1: head for the goal rather than fill the room
 const LEVEL_WEIGHT = 2;    // a metre of height between a cell and a goal on another floor counts as two of ground
@@ -26,7 +27,10 @@ export function createRouter(world, { now = () => performance.now() } = {}) {
   function floorOf(ix, iz, fromY) {
     const k = key(ix, iz) * 64 + (lvl(fromY) & 63);
     let f = floors.get(k);
-    if (f === undefined) { f = world.floor((ix + 0.5) * CELL, fromY, (iz + 0.5) * CELL); floors.set(k, f); }
+    if (f === undefined) {
+      if (floors.size > CACHE_MAX) { floors.clear(); edges.clear(); }   // walked far with no jump or new scene: start the memory over
+      f = world.floor((ix + 0.5) * CELL, fromY, (iz + 0.5) * CELL); floors.set(k, f);
+    }
     return f;
   }
   function open(a, d, di) {

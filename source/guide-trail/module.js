@@ -268,6 +268,7 @@ var WAIST = 0.9;
 var SIDE = 0.35;
 var WINDOW_M = 45;
 var MAX_EXPAND = 3e3;
+var CACHE_MAX = 1e5;
 var BUDGET_MS = 6;
 var WEIGHT = 1.6;
 var LEVEL_WEIGHT = 2;
@@ -281,6 +282,10 @@ function createRouter(world, { now = () => performance.now() } = {}) {
     const k = key(ix, iz) * 64 + (lvl(fromY) & 63);
     let f = floors.get(k);
     if (f === void 0) {
+      if (floors.size > CACHE_MAX) {
+        floors.clear();
+        edges.clear();
+      }
       f = world.floor((ix + 0.5) * CELL, fromY, (iz + 0.5) * CELL);
       floors.set(k, f);
     }
