@@ -1,3 +1,4 @@
 # the dev-review loader's run record
 dev-review/loader.log
 node_modules/
+dist/
