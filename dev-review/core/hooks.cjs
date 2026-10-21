@@ -154,11 +154,12 @@ module.exports = {
     // ui/townSheet.js: the street plan. Its view is the variable its hoverLabel tests first; its player, field and quest rings
     // are the functions its homeView, field getter and `quests` member name.
     needle: 'context(){return!1},homeView(',
-    find: /context\(\)\{return!1\},homeView\((\w+)\)\{return (\w+)\(\1,(\w+)\(\)\)\},get field\(\)\{return (\w+)\(\)\},get plan\(\)\{return \4\(\),(\w+)\},names:(\w+),quests:(\w+),/,
-    replace: (m, d, fit, player, field, plan, names, quests, offset, whole) => {
+    // 0.1.10435 added `me:<player>,findMe(...){...},` between homeView and the field getter: kept as is when present.
+    find: /context\(\)\{return!1\},homeView\((\w+)\)\{return (\w+)\(\1,(\w+)\(\)\)\},((?:me:\3,findMe\([^]*?\},)?)get field\(\)\{return (\w+)\(\)\},get plan\(\)\{return \5\(\),(\w+)\},names:(\w+),quests:(\w+),/,
+    replace: (m, d, fit, player, findMe, field, plan, names, quests, offset, whole) => {
       const view = /hoverLabel\(\w+,\w+\)\{if\((\w+)\)\{for\((?:const|let) (\w+) of \w+\(\)\)\{(?:const|let)\[\w+,\w+\]=\w+\(\1,\2\.x,\2\.y\)/.exec(whole)?.[1];
       if (!view) return m;   // no view to read: the street plan is left as it was (the hook is reported as not applied by its count)
-      return `context(){return!1},...(globalThis.dfo?.townDest?.({view:()=>${view},player:()=>${player}(),field:()=>${field}(),quests:()=>${quests}()})??{}),homeView(${d}){return ${fit}(${d},${player}())},get field(){return ${field}()},get plan(){return ${field}(),${plan}},names:${names},quests:${quests},`;
+      return `context(){return!1},...(globalThis.dfo?.townDest?.({view:()=>${view},player:()=>${player}(),field:()=>${field}(),quests:()=>${quests}()})??{}),homeView(${d}){return ${fit}(${d},${player}())},${findMe}get field(){return ${field}()},get plan(){return ${field}(),${plan}},names:${names},quests:${quests},`;
     },
   },
   'mapPick:dungeon': {
@@ -193,8 +194,9 @@ module.exports = {
     // ui/heldMap.js: the window's paint - the flag over the sheet's own overlay
     event: 'mapPick',
     needle: '.paintOverlay(',
-    find: /(\w+)\.paintOverlay\((\w+),(\w+)\),this\._bandShown/,
-    replace: '$1.paintOverlay($2,$3),globalThis.dfo?.paintDest?.(this,$1,$2,$3),this._bandShown',
+    // 0.1.10435 put the find-me crosshair between the overlay and `_bandShown`, so the paint is matched by what follows it
+    find: /(\w+)\.paintOverlay\((\w+),(\w+)\)([,;])(?=let \w+=this\._findMeT>0|this\._bandShown)/,
+    replace: '$1.paintOverlay($2,$3),globalThis.dfo?.paintDest?.(this,$1,$2,$3)$4',
   },
 
   'drawFx:spellRow': {
