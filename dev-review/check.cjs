@@ -16,12 +16,15 @@ const { spawnSync } = require('child_process');
 const HOOKS = require('./core/hooks.cjs');
 const { applyPatch } = require('./core/patch-core.cjs');
 
-const beside = [path.join(__dirname, '..', '..', 'Daggerfall Online'), path.join(__dirname, '..', '..')];   // beside the mod's folder, or the mod's folder inside the game's
-const game = path.resolve(process.argv[2] || process.env.DFO_GAME || beside.find((d) => fs.existsSync(path.join(d, 'DFO Online.exe'))) || beside[0]);
-const userData = process.env.DAGGER_USER_DATA || path.join(process.env.APPDATA || '', 'Daggerfall JavaScript');
-const modsDir = process.argv[3] || path.join(userData, 'Mods');
-const assets = path.join(game, 'resources', 'app.asar', 'dist', 'assets');
-const version = JSON.parse(fs.readFileSync(path.join(game, 'resources', 'app.asar', 'package.json'), 'utf8')).version;
+// Runs under the game's own runtime (the launcher starts it that way), so the game is the one whose runtime this is: its resources
+// are read from inside it, which also works inside a Linux AppImage's mount. The launchers pick the game (platform.cjs) and pass it as
+// DFO_GAME; it is only named in the report here.
+const platform = require('./platform.cjs');
+const game = path.resolve(process.argv[2] || process.env.DFO_GAME || path.dirname(process.execPath));
+const modsDir = process.argv[3] || path.join(platform.userData(), 'Mods');
+const resources = platform.resources();
+const assets = path.join(resources, 'app.asar', 'dist', 'assets');
+const version = JSON.parse(fs.readFileSync(path.join(resources, 'app.asar', 'package.json'), 'utf8')).version;
 console.log(`DFO Online ${version}; modules in ${modsDir}`);
 
 let failed = false;

@@ -5,7 +5,7 @@ and what to do after a game update.
 
 ## What you need
 
-- The **DFO Online desktop app** (Windows). Modules do not run in a web browser.
+- The **DFO Online desktop app** (Windows, macOS or Linux). Modules do not run in a web browser.
 - **DFO Online must have been started at least once.** That creates the folder the mod installs into.
 - Nothing else. You do not need Node.js, a developer tool, or an account for the mod.
 
@@ -14,6 +14,30 @@ and what to do after a game update.
 > through its loader. The loader connects to the game's debug port on this computer (127.0.0.1) for about four seconds while
 > the game starts, then closes it. Nothing is sent to any server. Once the Mod API ships, `Play Wayfarer.cmd` will only start
 > the game and the loader will no longer be needed.
+
+## Linux and macOS
+
+The same mod, with shell scripts in place of the `.cmd` files. Open a terminal in the mod's folder:
+
+| Windows | Linux and macOS |
+| --- | --- |
+| `Install.cmd` | `./install.sh` |
+| `Play Wayfarer.cmd` | `./play-wayfarer.sh` |
+| `Uninstall.cmd` | `./uninstall.sh` (`-y` skips the question) |
+| `dev-review\Check hooks.cmd` | `./dev-review/check-hooks.sh` |
+
+If a script will not run, `chmod +x *.sh dev-review/*.sh` once (a zip download drops the executable bit).
+
+The game is found beside the mod's folder, around it, or in the usual places: `/Applications/DFO Online.app` on macOS;
+`~/Applications`, `~/Games`, `~/Downloads` or `~` on Linux (the AppImage, `DFO-Online-linux-*.AppImage`). Anywhere else:
+`DFO_GAME=/path/to/it ./play-wayfarer.sh` (the game's folder, `DFO Online.app` or the AppImage file).
+
+- The mod goes into `~/Library/Application Support/Daggerfall JavaScript/Mods` (macOS) or `~/.config/Daggerfall JavaScript/Mods`
+  (Linux), the game's own data folder; `DAGGER_USER_DATA` moves it, for the game and the mod alike. Start the game once first.
+- **macOS:** the game is not notarized, so the first start may need System Settings > Privacy & Security > Open Anyway.
+- **Linux AppImage:** some systems refuse an AppImage's sandbox. Pass the game's own switch: `./play-wayfarer.sh -- --no-sandbox`.
+- Status: tested on Windows. The Linux and macOS scripts follow the game's own build layout and have not been run on those systems
+  yet; if one fails, `dev-review/loader.log` says why.
 
 ## Where to put the mod's folder
 

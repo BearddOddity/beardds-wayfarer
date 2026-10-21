@@ -14,22 +14,23 @@
 // The game's runtime is Node 24, so this file runs under either. The game itself is started WITHOUT ELECTRON_RUN_AS_NODE.
 // The game folder: --game, else the DFO_GAME environment variable, else "Daggerfall Online" beside this repo's folder.
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const at = process.argv.indexOf('--game');
-// the game beside this mod's folder, or the mod's folder inside the game's folder
-const beside = [join(here, '..', '..', 'Daggerfall Online'), join(here, '..', '..')];
-const game = resolve(at >= 0 ? process.argv[at + 1] : process.env.DFO_GAME || beside.find((d) => existsSync(join(d, 'DFO Online.exe'))) || beside[0]);
-const exe = join(game, 'DFO Online.exe');
+// Windows, macOS and Linux alike (platform.cjs): --game may be the install folder, the macOS "DFO Online.app", a Linux AppImage
+// or its folder; else DFO_GAME, the game beside this mod's folder or around it, and the game's usual homes.
+const found = createRequire(import.meta.url)('./platform.cjs').findGame(join(here, '..'), at >= 0 ? process.argv[at + 1] : undefined);
+if (!found) { console.error('DFO Online was not found. Set DFO_GAME to the game (its folder, "DFO Online.app" or the AppImage), or pass --game "<path>".'); process.exit(1); }
+const exe = found.exe;
 const loader = join(here, 'loader', 'main.cjs').replace(/\\/g, '/');
 const PORT = 9455;
 
 const extra = process.argv.includes('--') ? process.argv.slice(process.argv.indexOf('--') + 1) : [];   // anything after -- goes to the game (e.g. --remote-debugging-port=9333)
 const child = spawn(exe, [`--inspect-brk=${PORT}`, ...extra], {
-  cwd: game, detached: true, stdio: 'ignore',
+  cwd: dirname(exe), detached: true, stdio: 'ignore',
   env: Object.fromEntries(Object.entries({ ...process.env, WAYFARER_INSPECT: '1' }).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE')),
 });
 child.unref();
