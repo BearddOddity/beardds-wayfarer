@@ -3,9 +3,11 @@
 //   node tools/package.mjs            -> dist/Beardds-Wayfarer-<version>.zip   (the version is the newest CHANGELOG heading)
 //
 // The repository keeps the developer's layout (source/, test/, game-integration/, dev-review/, tools/, docs/developers/). The zip
-// has none of that. It is the same files, regrouped:
+// has none of that. It is the same files, regrouped. They sit at the ROOT of the zip, with no folder around them: a player who
+// unzips gets one folder (named after the zip), and that folder is the mod's folder the launchers look for beside the game. A
+// folder inside the zip would make two, and put the mod one level too deep.
 //
-//   Beardd's Wayfarer/
+//   (the zip's root)
 //     README.md  CHANGELOG.md  LICENSE
 //     Install.cmd  Play Wayfarer.cmd  Uninstall.cmd         Windows: double-click
 //     Linux and macOS/  install.sh  play-wayfarer.sh  uninstall.sh
@@ -91,7 +93,7 @@ if (dead.length) throw new Error(`links to files that are not in the download:\n
 const zip = join(dist, `Beardds-Wayfarer-${version}.zip`);
 const tar = process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : null;
 const r = tar
-  ? spawnSync(tar, ['-a', '-c', '-f', zip, '-C', dist, top], { stdio: 'inherit' })   // Windows' own bsdtar writes a real zip
-  : spawnSync('zip', ['-qr', zip, top], { cwd: dist, stdio: 'inherit' });
+  ? spawnSync(tar, ['-a', '-c', '-f', zip, '-C', out, ...readdirSync(out)], { stdio: 'inherit' })   // Windows' own bsdtar writes a real zip; named entries, so none starts with ./
+  : spawnSync('zip', ['-qr', zip, ...readdirSync(out)], { cwd: out, stdio: 'inherit' });
 if (r.status !== 0) throw new Error('could not make the zip');
 console.log(`${relative(repo, zip)}  (${(statSync(zip).size / 1024).toFixed(0)} KB)`);
