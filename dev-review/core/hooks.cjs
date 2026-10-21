@@ -302,7 +302,15 @@ module.exports = {
       const sel = /let ([\w$]+)=([\w$]+)\[([\w$]+)\],([\w$]+)=([\w$]+)\(`div`,`px-qdetail`\)/.exec(whole);
       const draw = /function ([\w$]+)\(\)\{if\(!([\w$]+)\)return;\2\.innerHTML=``/.exec(whole);
       if (!sel || !draw) return m;
-      return `}globalThis.dfoSpellPanel?.(${sel[1]}.spell,${sel[4]},${draw[1]});${m.slice(1)}`;
+      // The redraw is passed by name, and the view's function is long: a name it declares for itself later on (0.1.10435 has `let Z=` for
+      // the Delete button inside `function Z`) would be read before it exists and throw on every draw - the spellbook would not open.
+      // So: the repaint wrapper (`function X(){R&&T(R,Z)}`) if its name is free in the view's body, else the draw function's, else no hook.
+      const end = whole.indexOf('}function ', offset), body = whole.slice(draw.index, end > offset ? end : offset + 6000);
+      const taken = (n) => new RegExp(`(?:let|const|var|for\\((?:let|const)) ?(?:[^;{}]*?[,\\s])?${n.replace(/\$/g, '\\$')}=`).test(body) || new RegExp(`[(,]${n.replace(/\$/g, '\\$')}\\)?=>`).test(body);
+      const wrapper = new RegExp(`function ([\\w$]+)\\(\\)\\{${draw[2]}&&[\\w$]+\\(${draw[2]},${draw[1]}\\)\\}`).exec(whole)?.[1];
+      const redraw = [wrapper, draw[1]].find((n) => n && !taken(n));
+      if (!redraw) return m;
+      return `}globalThis.dfoSpellPanel?.(${sel[1]}.spell,${sel[4]},${redraw});${m.slice(1)}`;
     },
   },
 };
